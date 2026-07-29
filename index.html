@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
+  <title>Pilsindex</title>
+
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#018786">
+
+  <!-- iOS "Add to Home Screen" behaviour -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Pilsindex">
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="appbar">
+      <div class="appbar-title">
+        <span class="logo">🍺</span>
+        <div>
+          <h1>Pilsindex</h1>
+          <p class="tagline">It's five o' clock somewhere</p>
+        </div>
+      </div>
+      <button class="loc-pill" id="changeLocBtn" type="button">
+        <span id="locationName">Locating…</span>
+        <span class="chevron">▾</span>
+      </button>
+    </header>
+
+    <div class="search-sheet" id="searchRow">
+      <div class="search-input-wrap">
+        <input id="cityInput" placeholder="Search city…" autocomplete="off" />
+        <div class="dropdown" id="cityDropdown"></div>
+      </div>
+      <button id="useLocBtn" type="button">Use my location</button>
+    </div>
+
+    <main class="screen">
+      <section class="hero">
+        <div class="circle" id="progressCircle" aria-label="Current beer index">
+          <div class="inner"><span id="indexValue">🍻</span></div>
+        </div>
+        <p class="hero-caption" id="heroCaption">Loading forecast…</p>
+      </section>
+
+      <section class="forecast-section">
+        <h2>Next 48 hours</h2>
+        <div class="card-scroller" id="hourlyCards"></div>
+      </section>
+
+      <section class="forecast-section">
+        <h2>Days 3–7 <span class="muted">(6-hour blocks)</span></h2>
+        <div class="card-scroller" id="blockCards"></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Beer Index (BI): 0–100, higher = better beer garden weather.</p>
+    </footer>
+  </div>
+
+  <script src="beerIndexFormula.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

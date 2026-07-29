@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BeerIndex</title>
+<style>
+  :root{
+    --bg:#fff8ec;
+    --card:#ffffff;
+    --ink:#2b1d0e;
+    --muted:#7a6a55;
+    --accent:#e8a33d;
+    --accent-dark:#b8721c;
+    --line:#f0e0c4;
+    --shadow: 0 2px 10px rgba(120,80,20,0.10);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:linear-gradient(180deg,#fff3d9 0%,#fff8ec 220px,var(--bg) 100%);
+    color:var(--ink);
+    min-height:100vh;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:20px 16px 60px;}
+  header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .logo{font-size:34px;}
+  .brand h1{font-size:24px;margin:0;letter-spacing:-0.02em;}
+  .brand small{display:block;color:var(--muted);font-size:12.5px;margin-top:1px;}
+  .loc-box{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);padding:6px 10px;border-radius:999px;box-shadow:var(--shadow);font-size:13.5px;}
+  .loc-box button{
+    border:none;background:transparent;color:var(--accent-dark);font-weight:600;cursor:pointer;font-size:13px;padding:2px 4px;
+  }
+  #locName{font-weight:600;}
+
+  .search-row{display:none;gap:8px;margin-top:10px;}
+  .search-row.active{display:flex;}
+  .search-row input{flex:1;padding:9px 12px;border-radius:10px;border:1px solid var(--line);font-size:14px;}
+  .search-row button{padding:9px 14px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:600;cursor:pointer;}
+  #searchResults{position:relative;}
+  #searchResults .dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);margin-top:4px;overflow:hidden;z-index:5;}
+  #searchResults .dropdown div{padding:9px 12px;cursor:pointer;font-size:13.5px;}
+  #searchResults .dropdown div:hover{background:#fdf1da;}
+
+  .status{color:var(--muted);font-size:14px;padding:30px 0;text-align:center;}
+
+  .now-card{
+    background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px 24px;box-shadow:var(--shadow);
+    display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-bottom:24px;
+  }
+  .gauge{width:120px;height:120px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;flex-shrink:0;color:#fff;box-shadow:inset 0 0 0 6px rgba(255,255,255,0.25);}
+  .gauge .num{font-size:34px;font-weight:800;line-height:1;}
+  .gauge .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;opacity:0.9;margin-top:2px;}
+  .now-info{flex:1;min-width:200px;}
+  .now-info .verdict{font-size:19px;font-weight:700;margin-bottom:4px;}
+  .now-info .sub{color:var(--muted);font-size:13.5px;margin-bottom:10px;}
+  .metrics{display:flex;flex-wrap:wrap;gap:14px;}
+  .metric{font-size:13px;color:var(--ink);}
+  .metric b{display:block;font-size:15px;}
+  .metric .u{color:var(--muted);font-weight:400;font-size:12px;}
+
+  h2.section{font-size:15px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin:26px 0 10px;}
+
+  .timeline{display:flex;gap:10px;overflow-x:auto;padding-bottom:10px;-webkit-overflow-scrolling:touch;}
+  .timeline::-webkit-scrollbar{height:6px;}
+  .timeline::-webkit-scrollbar-thumb{background:#e6d3ac;border-radius:3px;}
+
+  .hcard{
+    min-width:92px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 8px;text-align:center;
+    box-shadow:var(--shadow);flex-shrink:0;
+  }
+  .hcard .t{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px;}
+  .hcard .emoji{font-size:22px;margin-bottom:4px;}
+  .hcard .score{font-size:20px;font-weight:800;border-radius:8px;padding:2px 0;margin-bottom:6px;}
+  .hcard .deg{font-size:13px;font-weight:600;}
+  .hcard .extra{font-size:10.5px;color:var(--muted);margin-top:3px;line-height:1.4;}
+
+  footer{margin-top:30px;text-align:center;}
+  .info-toggle{background:none;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:7px 14px;font-size:12.5px;cursor:pointer;}
+  .info-panel{display:none;max-width:560px;margin:14px auto 0;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;font-size:13px;color:var(--muted);text-align:left;line-height:1.55;box-shadow:var(--shadow);}
+  .info-panel.active{display:block;}
+  .info-panel b{color:var(--ink);}
+
+  @media (max-width:520px){
+    .now-card{padding:18px;}
+    .gauge{width:100px;height:100px;}
+    .gauge .num{font-size:28px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo">🍺</div>
+      <div>
+        <h1>BeerIndex</h1>
+        <small>How good is it to sit outside right now?</small>
+      </div>
+    </div>
+    <div class="loc-box">
+      <span id="locName">Locating…</span>
+      <button id="changeLocBtn">change</button>
+    </div>
+  </header>
+
+  <div class="search-row" id="searchRow">
+    <div id="searchResults" style="flex:1;">
+      <input id="cityInput" placeholder="Search city…" autocomplete="off">
+      <div class="dropdown" id="dropdown" style="display:none;"></div>
+    </div>
+    <button id="useLocBtn">Use my location</button>
+  </div>
+
+  <div id="content">
+    <div class="status" id="statusMsg">Getting your location…</div>
+  </div>
+
+  <footer>
+    <button class="info-toggle" id="infoBtn">How is this calculated?</button>
+    <div class="info-panel" id="infoPanel">
+      <b>The BeerIndex (0–100)</b> blends five signals from the forecast for each hour:<br><br>
+      <b>Temperature (35%)</b> — peaks around 23–25°C, drops off toward cold or scorching extremes.<br>
+      <b>Wind (20%)</b> — a light breeze (5–15 km/h) is ideal; dead calm is fine, gusty is not.<br>
+      <b>Humidity (15%)</b> — most comfortable between 40–60%.<br>
+      <b>Cloud cover (10%)</b> — some shade is nice, full overcast is a bit dull.<br>
+      <b>Rain chance</b> — subtracted directly: a high chance of rain drags the score down hard, regardless of everything else.<br><br>
+      Data from <b>Open-Meteo</b> (no key required). The first 48 hours are shown hour-by-hour; the following 5 days are grouped into 6-hour blocks, matching the forecast's native resolution.
+    </div>
+  </footer>
+</div>
+
+<script>
+const STORAGE_KEY = 'beerindex_location';
+
+function scoreColor(s){
+  if(s>=80) return '#3a9d4d';
+  if(s>=65) return '#7cb342';
+  if(s>=50) return '#e3a72e';
+  if(s>=30) return '#e07a2c';
+  return '#c0392b';
+}
+function verdictText(s){
+  if(s>=80) return 'Prime beer weather 🍻';
+  if(s>=65) return 'Pretty good — go for it';
+  if(s>=50) return 'Decent, bring a jacket maybe';
+  if(s>=30) return 'Marginal — your call';
+  return 'Stay inside, drink at the bar';
+}
+function weatherEmoji(cloud, precipProb){
+  if(precipProb>=50) return '🌧️';
+  if(precipProb>=25) return '🌦️';
+  if(cloud>=80) return '☁️';
+  if(cloud>=40) return '⛅';
+  return '☀️';
+}
+
+function tempScore(t){
+  // gaussian centered at 24, sigma 7.5, scaled 0-100
+  const s = 100*Math.exp(-Math.pow(t-24,2)/(2*7.5*7.5));
+  return Math.max(0, s);
+}
+function windScore(w){
+  if(w<=5) return 80+4*w;
+  if(w<=15) return 100;
+  if(w<=40) return Math.max(25, 100-(w-15)*3);
+  return Math.max(0, 25-(w-40)*2);
+}
+function humidityScore(h){
+  if(h>=40 && h<=60) return 100;
+  if(h<40) return Math.max(30, 100-(40-h)*1.5);
+  return Math.max(20, 100-(h-60)*1.5);
+}
+function cloudScore(c){
+  return Math.max(60, 100-0.3*Math.abs(c-45));
+}
+function beerIndex(t,w,h,c,precipProb,precipMm){
+  const base = (0.35*tempScore(t)+0.20*windScore(w)+0.15*humidityScore(h)+0.10*cloudScore(c))/0.80;
+  let rainPenalty = precipProb*0.5;
+  rainPenalty += Math.min(30, (precipMm||0)*10);
+  const final = base - rainPenalty;
+  return Math.max(0, Math.min(100, Math.round(final)));
+}
+
+function fmtHour(iso){
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], {hour:'numeric'}).replace(' ','');
+}
+function fmtDay(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString([], {weekday:'short', day:'numeric'});
+}
+
+async function reverseGeocode(lat, lon){
+  try{
+    const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+    const j = await r.json();
+    return j.city || j.locality || j.principalSubdivision || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+  }catch(e){
+    return `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+  }
+}
+
+async function fetchWeather(lat, lon){
+  const params = new URLSearchParams({
+    latitude: lat, longitude: lon,
+    hourly: 'temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,cloud_cover,wind_speed_10m',
+    forecast_days: 7,
+    timezone: 'auto'
+  });
+  const r = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
+  if(!r.ok) throw new Error('Weather fetch failed');
+  return r.json();
+}
+
+function buildHourly(data){
+  const h = data.hourly;
+  const rows = h.time.map((t,i)=>({
+    time:t,
+    temp:h.temperature_2m[i],
+    hum:h.relative_humidity_2m[i],
+    precipProb:h.precipitation_probability[i],
+    precipMm:h.precipitation[i],
+    cloud:h.cloud_cover[i],
+    wind:h.wind_speed_10m[i]
+  }));
+  return rows;
+}
+
+function bucketize6h(rows){
+  const buckets=[];
+  for(let i=0;i<rows.length;i+=6){
+    const chunk = rows.slice(i,i+6);
+    if(chunk.length===0) continue;
+    const avg = k=>chunk.reduce((a,r)=>a+r[k],0)/chunk.length;
+    const max = k=>Math.max(...chunk.map(r=>r[k]));
+    buckets.push({
+      time: chunk[0].time,
+      temp: avg('temp'),
+      hum: avg('hum'),
+      precipProb: max('precipProb'),
+      precipMm: chunk.reduce((a,r)=>a+r.precipMm,0),
+      cloud: avg('cloud'),
+      wind: avg('wind')
+    });
+  }
+  return buckets;
+}
+
+function renderCard(row, showDay){
+  const score = beerIndex(row.temp,row.wind,row.hum,row.cloud,row.precipProb,row.precipMm);
+  const color = scoreColor(score);
+  const emoji = weatherEmoji(row.cloud, row.precipProb);
+  const label = showDay ? fmtDay(row.time) : fmtHour(row.time);
+  return `<div class="hcard">
+    <div class="t">${label}</div>
+    <div class="emoji">${emoji}</div>
+    <div class="score" style="background:${color}22;color:${color}">${score}</div>
+    <div class="deg">${Math.round(row.temp)}°</div>
+    <div class="extra">💨${Math.round(row.wind)} · 💧${row.precipProb}%</div>
+  </div>`;
+}
+
+async function renderAll(lat, lon, name){
+  document.getElementById('locName').textContent = name;
+  document.getElementById('statusMsg').textContent = 'Loading forecast…';
+  try{
+    const data = await fetchWeather(lat, lon);
+    const rows = buildHourly(data);
+    const now = new Date();
+    // find index closest to current time
+    let curIdx = 0;
+    let bestDiff = Infinity;
+    rows.forEach((r,i)=>{
+      const diff = Math.abs(new Date(r.time)-now);
+      if(diff<bestDiff){bestDiff=diff;curIdx=i;}
+    });
+    const cur = rows[curIdx];
+    const curScore = beerIndex(cur.temp,cur.wind,cur.hum,cur.cloud,cur.precipProb,cur.precipMm);
+    const curColor = scoreColor(curScore);
+
+    const next48 = rows.slice(curIdx, curIdx+48);
+    const rest = rows.slice(curIdx+48);
+    const buckets = bucketize6h(rest);
+
+    const html = `
+      <div class="now-card">
+        <div class="gauge" style="background:${curColor}">
+          <div class="num">${curScore}</div>
+          <div class="lbl">Beer Index</div>
+        </div>
+        <div class="now-info">
+          <div class="verdict">${verdictText(curScore)}</div>
+          <div class="sub">Right now, ${name}</div>
+          <div class="metrics">
+            <div class="metric"><b>${Math.round(cur.temp)}°C</b><span class="u">temp</span></div>
+            <div class="metric"><b>${Math.round(cur.wind)} km/h</b><span class="u">wind</span></div>
+            <div class="metric"><b>${Math.round(cur.hum)}%</b><span class="u">humidity</span></div>
+            <div class="metric"><b>${Math.round(cur.cloud)}%</b><span class="u">cloud</span></div>
+            <div class="metric"><b>${cur.precipProb}%</b><span class="u">rain chance</span></div>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section">Next 48 hours</h2>
+      <div class="timeline">${next48.map(r=>renderCard(r,false)).join('')}</div>
+
+      <h2 class="section">Days 3–7 (6-hour blocks)</h2>
+      <div class="timeline">${buckets.map(r=>renderCard(r,true)).join('')}</div>
+    `;
+    document.getElementById('content').innerHTML = html;
+  }catch(e){
+    document.getElementById('content').innerHTML = `<div class="status">Could not load weather data. ${e.message||''}</div>`;
+  }
+}
+
+function saveLocation(lat, lon, name){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({lat,lon,name})); }catch(e){}
+}
+function loadSavedLocation(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)); }catch(e){ return null; }
+}
+
+function useGeolocation(){
+  document.getElementById('statusMsg') && (document.getElementById('content').innerHTML='<div class="status">Getting your location…</div>');
+  if(!navigator.geolocation){
+    document.getElementById('locName').textContent = 'Location unavailable';
+    toggleSearch(true);
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const {latitude, longitude} = pos.coords;
+    const name = await reverseGeocode(latitude, longitude);
+    saveLocation(latitude, longitude, name);
+    renderAll(latitude, longitude, name);
+  }, err=>{
+    document.getElementById('locName').textContent = 'Location denied';
+    document.getElementById('content').innerHTML = '<div class="status">Location access denied. Search for a city instead.</div>';
+    toggleSearch(true);
+  }, {timeout:10000});
+}
+
+function toggleSearch(force){
+  const row = document.getElementById('searchRow');
+  if(force===true) row.classList.add('active');
+  else if(force===false) row.classList.remove('active');
+  else row.classList.toggle('active');
+}
+
+document.getElementById('changeLocBtn').addEventListener('click', ()=>toggleSearch());
+document.getElementById('useLocBtn').addEventListener('click', ()=>{ toggleSearch(false); useGeolocation(); });
+document.getElementById('infoBtn').addEventListener('click', ()=>{
+  document.getElementById('infoPanel').classList.toggle('active');
+});
+
+let searchTimer;
+document.getElementById('cityInput').addEventListener('input', e=>{
+  clearTimeout(searchTimer);
+  const q = e.target.value.trim();
+  const dd = document.getElementById('dropdown');
+  if(q.length<2){ dd.style.display='none'; return; }
+  searchTimer = setTimeout(async ()=>{
+    try{
+      const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=en`);
+      const j = await r.json();
+      if(!j.results || j.results.length===0){ dd.style.display='none'; return; }
+      dd.innerHTML = j.results.map(res=>{
+        const label = [res.name, res.admin1, res.country].filter(Boolean).join(', ');
+        return `<div data-lat="${res.latitude}" data-lon="${res.longitude}" data-name="${res.name}">${label}</div>`;
+      }).join('');
+      dd.style.display='block';
+      dd.querySelectorAll('div').forEach(div=>{
+        div.addEventListener('click', ()=>{
+          const lat = parseFloat(div.dataset.lat), lon = parseFloat(div.dataset.lon), name = div.dataset.name;
+          dd.style.display='none';
+          document.getElementById('cityInput').value='';
+          toggleSearch(false);
+          saveLocation(lat, lon, name);
+          renderAll(lat, lon, name);
+        });
+      });
+    }catch(err){ dd.style.display='none'; }
+  }, 350);
+});
+
+// init
+const saved = loadSavedLocation();
+if(saved && saved.lat && saved.lon){
+  renderAll(saved.lat, saved.lon, saved.name);
+}else{
+  useGeolocation();
+}
+</script>
+</body>
+</html>
