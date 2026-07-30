@@ -67,7 +67,7 @@
   <!-- DETAILS: forecast timelines -->
   <section class="page" id="detailsView" hidden>
     <div id="content">
-      <div class="status" id="statusMsg">Henter din lokasjon...</div>
+      <div class="status">Henter din lokasjon...</div>
     </div>
   </section>
 
@@ -350,7 +350,10 @@ function renderBestTimeCard(rows, now){
 
 async function renderAll(lat, lon, name){
   document.getElementById('locName').textContent = name;
-  document.getElementById('statusMsg').textContent = 'Henter værvarsel…';
+  // #content may currently hold the day-cards from a previous city (or an
+  // error message), not the original #statusMsg element, so replace it
+  // outright rather than assuming a specific child still exists.
+  document.getElementById('content').innerHTML = '<div class="status">Henter værvarsel…</div>';
   try{
     const data = await fetchWeather(lat, lon);
     const rows = buildHourly(data);
@@ -390,7 +393,7 @@ function loadSavedLocation(){
 }
 
 function useGeolocation(){
-  document.getElementById('statusMsg') && (document.getElementById('content').innerHTML='<div class="status">Henter din lokasjon…</div>');
+  document.getElementById('content').innerHTML = '<div class="status">Henter din lokasjon…</div>';
   if(!navigator.geolocation){
     document.getElementById('locName').textContent = 'Lokasjon utilgjengelig';
     toggleSearch(true);
