@@ -397,12 +397,32 @@ function useGeolocation(){
     showView('details');
     return;
   }
+  // Some mobile browsers (particularly installed/standalone PWAs on iOS)
+  // don't reliably honor the `timeout` option below and can just hang
+  // forever instead of calling either callback. This watchdog guarantees
+  // the app falls through to manual search no matter what the browser does.
+  let settled = false;
+  const watchdog = setTimeout(()=>{
+    if(settled) return;
+    settled = true;
+    document.getElementById('locName').textContent = 'Fant ikke lokasjon';
+    document.getElementById('content').innerHTML = '<div class="status">Kunne ikke hente posisjonen din. Søk etter en by i stedet.</div>';
+    toggleSearch(true);
+    showView('details');
+  }, 12000);
+
   navigator.geolocation.getCurrentPosition(async pos=>{
+    if(settled) return;
+    settled = true;
+    clearTimeout(watchdog);
     const {latitude, longitude} = pos.coords;
     const name = await reverseGeocode(latitude, longitude);
     saveLocation(latitude, longitude, name);
     renderAll(latitude, longitude, name);
   }, err=>{
+    if(settled) return;
+    settled = true;
+    clearTimeout(watchdog);
     document.getElementById('locName').textContent = 'Lokasjon avslått';
     document.getElementById('content').innerHTML = '<div class="status">Tilgang til lokasjon ble avslått. Søk etter en by i stedet.</div>';
     toggleSearch(true);
@@ -487,9 +507,18 @@ const savedView = (function(){ try{ return localStorage.getItem(VIEW_KEY); }catc
 showView(VIEWS.includes(savedView) ? savedView : 'home');
 
 // init location + weather
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const saved = loadSavedLocation();
 if(saved && saved.lat && saved.lon){
   renderAll(saved.lat, saved.lon, saved.name);
+}else if(isStandalone){
+  // Installed home-screen web apps on iOS run in a separate context from
+  // Safari and often silently ignore a geolocation request that isn't
+  // triggered by a direct tap, so it just hangs. Wait for the user to tap
+  // "Bruk min lokasjon" (or search) instead of auto-requesting on launch.
+  toggleSearch(true);
+  showView('details');
+  document.getElementById('content').innerHTML = '<div class="status">Trykk «Bruk min lokasjon» eller søk etter en by for å komme i gang.</div>';
 }else{
   useGeolocation();
 }
