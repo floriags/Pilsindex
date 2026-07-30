@@ -1,72 +1,503 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="no">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
-  <title>Pilsindex</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
+<title>Pilsindex</title>
 
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <link rel="apple-touch-icon" href="icons/icon-180.png">
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#018786">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#b8721c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pilsindex">
 
-  <!-- iOS "Add to Home Screen" behaviour -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Pilsindex">
-
-  <link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app">
-    <header class="appbar">
-      <div class="appbar-title">
-        <span class="logo">🍺</span>
-        <div>
-          <h1>Pilsindex</h1>
-          <p class="tagline">It's five o' clock somewhere</p>
-        </div>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo">&#127867;</div>
+      <div>
+        <h1>Pilsindex</h1>
+        <small>Det er alltid tid for en utepils et sted</small>
       </div>
-      <button class="loc-pill" id="changeLocBtn" type="button">
-        <span id="locationName">Locating…</span>
-        <span class="chevron">▾</span>
-      </button>
-    </header>
-
-    <div class="search-sheet" id="searchRow">
-      <div class="search-input-wrap">
-        <input id="cityInput" placeholder="Search city…" autocomplete="off" />
-        <div class="dropdown" id="cityDropdown"></div>
-      </div>
-      <button id="useLocBtn" type="button">Use my location</button>
     </div>
+    <div class="loc-wrap">
+      <div class="loc-box">
+        <span id="locName">Lokaliserer...</span>
+        <button id="changeLocBtn">&#128269;</button>
+      </div>
 
-    <main class="screen">
-      <section class="hero">
-        <div class="circle" id="progressCircle" aria-label="Current beer index">
-          <div class="inner"><span id="indexValue">🍻</span></div>
+      <div class="search-row" id="searchRow">
+        <div id="searchResults">
+          <input id="cityInput" placeholder="Søk etter by…" autocomplete="off">
+          <div class="dropdown" id="dropdown" style="display:none;"></div>
         </div>
-        <p class="hero-caption" id="heroCaption">Loading forecast…</p>
-      </section>
+        <button id="useLocBtn">Bruk min lokasjon</button>
+      </div>
+    </div>
+  </header>
 
-      <section class="forecast-section">
-        <h2>Next 48 hours</h2>
-        <div class="card-scroller" id="hourlyCards"></div>
-      </section>
+  <nav class="view-toggle" role="tablist" aria-label="Page">
+    <button class="view-btn active" id="homeTabBtn" data-view="home" role="tab" aria-selected="true">&#8962;</button>
+    <button class="view-btn" id="detailsTabBtn" data-view="details" role="tab" aria-selected="false">&#9776;</button>
+    <button class="view-btn" id="aboutTabBtn" data-view="about" role="tab" aria-selected="false">&#9432;</button>
+  </nav>
 
-      <section class="forecast-section">
-        <h2>Days 3–7 <span class="muted">(6-hour blocks)</span></h2>
-        <div class="card-scroller" id="blockCards"></div>
-      </section>
-    </main>
+  <!-- HOME: title (above), current Beer Index, current conditions, best time this week -->
+  <section class="page" id="homeView">
+    <div class="home-hero">
+      <div class="gauge gauge--home" id="homeGauge" aria-label="Nåværende pilsindex">
+        <div class="num" id="homeGaugeNum">&#127867;</div>
+        <div class="lbl">Pilsindex</div>
+      </div>
+      <p class="home-verdict" id="homeVerdict">Henter værvarsel...</p>
 
-    <footer class="footer">
-      <p>Beer Index (BI): 0–100, higher = better beer garden weather.</p>
-    </footer>
-  </div>
+      <div class="home-now" id="homeNow">
+        <span class="home-now-emoji" id="homeNowEmoji">&#127867;</span>
+        <span class="home-now-temp" id="homeNowTemp">--°</span>
+      </div>
+    </div>
+  </section>
 
-  <script src="beerIndexFormula.js"></script>
-  <script src="script.js"></script>
+  <!-- DETAILS: forecast timelines -->
+  <section class="page" id="detailsView" hidden>
+    <div id="content">
+      <div class="status" id="statusMsg">Henter din lokasjon...</div>
+    </div>
+  </section>
+
+  <!-- ABOUT: what the Beer Index is and how it's calculated -->
+  <section class="page" id="aboutView" hidden>
+    <div class="info-panel">
+      <b>Pilsindexen</b> viser hvor deilig det er å ta seg en utepils time for time. Verdien blir kalkulert basert på flere faktorer:<br><br>
+      <b>Temperatur</b> — best rundt 25°C, og synker mot kaldere eller altfor varme ytterpunkter.<br><br>
+      <b>Vind</b> — en lett bris er ideelt, mye vind trekker ned.<br><br>
+      <b>Luftfuktighet</b> — mest behagelig rundt 50%. Ikke så behagelig i Sahara eller Amazonas.<br><br>
+      <b>Skydekke</b> — litt skygge er nice, helt overskyet er ganske teit.<br><br>
+      <b>Sannsynlighet for nedbør</b> — ingen liker regn når det er tid for utepils. Høy sjanse for regn drar poengsummen kraftig ned, uansett alt annet.<br><br>
+      Data hentet fra <b>Open-Meteo</b> (krever ingen API-nøkkel).
+    </div>
+  </section>
+</div>
+
+<script>
+const STORAGE_KEY = 'beerindex_location';
+const VIEW_KEY = 'pilsindex_view';
+
+// Continuous red→orange→yellow→green gradient, built by linearly
+// interpolating between the same four colors the old discrete bands used
+// (so the palette still feels the same, it just blends smoothly now).
+const SCORE_COLOR_STOPS = [
+  {s:0,    c:'#c0392b'}, // red
+  {s:0.25, c:'#e07a2c'}, // orange
+  {s:0.5,  c:'#e3a72e'}, // yellow
+  {s:0.75, c:'#7cb342'}, // light green
+  {s:1,    c:'#3a9d4d'}  // green
+];
+function hexToRgb(hex){
+  const h = hex.replace('#','');
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+function rgbToHex(rgb){
+  return '#' + rgb.map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join('');
+}
+function scoreColor(score){
+  const s = Math.max(0, Math.min(1, score));
+  let lo = SCORE_COLOR_STOPS[0], hi = SCORE_COLOR_STOPS[SCORE_COLOR_STOPS.length-1];
+  for(let i=0; i<SCORE_COLOR_STOPS.length-1; i++){
+    if(s >= SCORE_COLOR_STOPS[i].s && s <= SCORE_COLOR_STOPS[i+1].s){
+      lo = SCORE_COLOR_STOPS[i]; hi = SCORE_COLOR_STOPS[i+1];
+      break;
+    }
+  }
+  const t = hi.s === lo.s ? 0 : (s - lo.s) / (hi.s - lo.s);
+  const rgbLo = hexToRgb(lo.c), rgbHi = hexToRgb(hi.c);
+  const blended = [0,1,2].map(i => rgbLo[i] + (rgbHi[i]-rgbLo[i]) * t);
+  return rgbToHex(blended);
+}
+function verdictText(s){
+  if(s>=0.9) return 'Livsfarlig å være en utepils';
+  if(s>=0.75) return 'Ganske greit med en halvliter nå ja';
+  if(s>=0.5) return 'Ikke tenk, bare pils';
+  if(s>=0.25) return 'Finnes ikke dårlig vær, bare dårlig pils';
+  return 'Kanskje best å komme seg på puben';
+}
+function weatherEmoji(cloudCover, rain){
+  if(rain && cloudCover < 25) return '🌦️'; // sunny rain
+  if(rain) return '🌧️';                    // rain
+  if(cloudCover < 10) return '☀️';         // sun
+  if(cloudCover < 33) return '🌤️';         // sun little cloud
+  if(cloudCover < 67) return '⛅️';         // sun medium cloud
+  if(cloudCover < 90) return '🌥️';         // sun big cloud
+  return '☁️';                             // cloudy
+}
+
+// Smooth per-factor curves (each 0-1), same weighted-average shape as
+// before, just rescaled to 0-1 output. The temperature curve's center was
+// nudged from 24 to 25 to match the ideal point from the Kotlin reference.
+function tempScore(t){
+  // gaussian centered at 25, sigma 7.5
+  return Math.max(0, Math.exp(-Math.pow(t-25,2)/(2*7.5*7.5)));
+}
+function windScore(w){
+  if(w<=5) return 0.8+0.04*w;
+  if(w<=15) return 1.0;
+  if(w<=40) return Math.max(0.25, 1-(w-15)*0.03);
+  return Math.max(0, 0.25-(w-40)*0.02);
+}
+function humidityScore(h){
+  if(h>=40 && h<=60) return 1.0;
+  if(h<40) return Math.max(0.3, 1-(40-h)*0.015);
+  return Math.max(0.2, 1-(h-60)*0.015);
+}
+function cloudScore(c){
+  return Math.max(0.6, 1-0.003*Math.abs(c-45));
+}
+// Weighted average of the four factors above, with rain (both the chance
+// of it and how much) subtracted as a separate penalty at the end - so one
+// bad factor dents the score instead of wiping it out like a straight
+// product would.
+function beerIndex(t,w,h,c,precipProb,precipMm){
+  const base = (0.35*tempScore(t)+0.20*windScore(w)+0.15*humidityScore(h)+0.10*cloudScore(c))/0.80;
+  let rainPenalty = (precipProb/100)*0.5;
+  rainPenalty += Math.min(0.3, (precipMm||0)*0.1);
+  return Math.max(0, Math.min(1, base-rainPenalty));
+}
+
+function fmtHour(iso){
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], {hour:'numeric'}).replace(' ','');
+}
+// Hardcoded Norwegian names (rather than relying on the visitor's browser
+// locale) so the app reads consistently in Norwegian for everyone.
+const NB_WEEKDAYS = ['Søndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag'];
+const NB_MONTHS = ['januar','februar','mars','april','mai','juni','juli','august','september','oktober','november','desember'];
+function nbDatePart(date){ return `${date.getDate()}. ${NB_MONTHS[date.getMonth()]}`; }
+function nbWeekday(date){ return NB_WEEKDAYS[date.getDay()]; }
+function dayKey(d){ return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate(); }
+function dayHeaderLabel(dayIndex, date){
+  if(dayIndex===0) return `I dag ${nbDatePart(date)}`;
+  return `${nbWeekday(date)} ${nbDatePart(date)}`;
+}
+
+async function reverseGeocode(lat, lon){
+  try{
+    const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=no`);
+    const j = await r.json();
+    return j.city || j.locality || j.principalSubdivision || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+  }catch(e){
+    return `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+  }
+}
+
+async function fetchWeather(lat, lon){
+  const params = new URLSearchParams({
+    latitude: lat, longitude: lon,
+    hourly: 'temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,cloud_cover,wind_speed_10m',
+    forecast_days: 7,
+    timezone: 'auto'
+  });
+  const r = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
+  if(!r.ok) throw new Error('Weather fetch failed');
+  return r.json();
+}
+
+function buildHourly(data){
+  const h = data.hourly;
+  const rows = h.time.map((t,i)=>({
+    time:t,
+    temp:h.temperature_2m[i],
+    hum:h.relative_humidity_2m[i],
+    precipProb:h.precipitation_probability[i],
+    precipMm:h.precipitation[i],
+    cloud:h.cloud_cover[i],
+    wind:h.wind_speed_10m[i]
+  }));
+  return rows;
+}
+
+// Group hourly rows (>= now) into calendar days, in order.
+function buildDayGroups(rows, now){
+  const groups = [];
+  const map = new Map();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  rows.forEach(r=>{
+    const d = new Date(r.time);
+    if(d < now) return;
+    const k = dayKey(d);
+    if(!map.has(k)){
+      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const dayIndex = Math.round((dayStart - todayStart) / 86400000);
+      const group = {key:k, date:d, dayIndex, rows:[]};
+      map.set(k, group);
+      groups.push(group);
+    }
+    map.get(k).rows.push(r);
+  });
+
+  return groups.slice(0, 7);
+}
+
+// Split one day's hours into the four fixed 6-hour blocks Yr-style apps use.
+function bucketQuarters(rows){
+  const quarters = [[],[],[],[]];
+  const labels = ['00-06','06-12','12-18','18-24'];
+  rows.forEach(r=>{
+    const h = new Date(r.time).getHours();
+    quarters[Math.min(3, Math.floor(h/6))].push(r);
+  });
+  return quarters.map((chunk,i)=>{
+    if(chunk.length===0) return null;
+    const avg = k=>chunk.reduce((a,r)=>a+r[k],0)/chunk.length;
+    const max = k=>Math.max(...chunk.map(r=>r[k]));
+    return {
+      label: labels[i],
+      temp: avg('temp'), hum: avg('hum'), wind: avg('wind'), cloud: avg('cloud'),
+      precipProb: max('precipProb'),
+      precipMm: chunk.reduce((a,r)=>a+r.precipMm,0)
+    };
+  }).filter(Boolean);
+}
+
+function renderRow(label, temp, wind, hum, cloud, precipProb, precipMm){
+  const score = beerIndex(temp,wind,hum,cloud,precipProb,precipMm);
+  const color = scoreColor(score);
+  const rain = precipMm > 0.1;
+  const emoji = weatherEmoji(cloud, rain);
+  return `<div class="day-row">
+    <span class="row-time">${label}</span>
+    <span class="row-emoji">${emoji}</span>
+    <span class="row-temp">${Math.round(temp)}°</span>
+    <span class="row-bi" style="background:${color}22;color:${color}">${score.toFixed(2)}</span>
+  </div>`;
+}
+
+// One "box" per day. Today: always hour-by-hour (it's already short and
+// partial). Every later day (tomorrow through day 7): 6-hour blocks by
+// default, with a "Details" toggle to expand to the full hour-by-hour view -
+// the hourly data is already in hand, so expanding is instant.
+function renderDayCard(group){
+  const hourlyRowsHtml = () => group.rows.map(r=>renderRow(fmtHour(r.time), r.temp, r.wind, r.hum, r.cloud, r.precipProb, r.precipMm)).join('');
+  const quarterRowsHtml = () => bucketQuarters(group.rows).map(b=>renderRow(b.label, b.temp, b.wind, b.hum, b.cloud, b.precipProb, b.precipMm)).join('');
+
+  if(group.dayIndex === 0){
+    return `<div class="day-card">
+      <div class="day-card-header">${dayHeaderLabel(group.dayIndex, group.date)}</div>
+      <div class="day-rows">${hourlyRowsHtml()}</div>
+    </div>`;
+  }
+
+  return `<div class="day-card">
+    <div class="day-card-header">${dayHeaderLabel(group.dayIndex, group.date)}</div>
+    <div class="day-rows" data-mode="quarters">${quarterRowsHtml()}</div>
+    <div class="day-rows" data-mode="hourly" hidden>${hourlyRowsHtml()}</div>
+    <button type="button" class="day-toggle" aria-expanded="false">Detaljer <span class="chev">▾</span></button>
+  </div>`;
+}
+
+// Update the Home-page gauge + current conditions with the latest hour.
+function renderHome(curScore, curColor, cur){
+  const gauge = document.getElementById('homeGauge');
+  const num = document.getElementById('homeGaugeNum');
+  const verdict = document.getElementById('homeVerdict');
+  if(gauge) gauge.style.background = curColor;
+  if(num) num.textContent = curScore.toFixed(2);
+  if(verdict) verdict.textContent = verdictText(curScore);
+
+  const emoji = document.getElementById('homeNowEmoji');
+  const temp = document.getElementById('homeNowTemp');
+  if(emoji) emoji.textContent = weatherEmoji(cur.cloud, cur.precipMm > 0.1);
+  if(temp) temp.textContent = `${Math.round(cur.temp)}°`;
+}
+
+// Find the single upcoming hour (across the whole week) with the highest
+// Beer Index - shown on the Details page as "Best time this week".
+function bestTimeLabel(date, now){
+  const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayIndex = Math.round((dayStart - todayStart) / 86400000);
+  const time = fmtHour(date);
+  if(dayIndex === 0) return `I dag kl. ${time}`;
+  return `${nbWeekday(date)} kl. ${time}`;
+}
+
+function findBestUpcoming(rows, now){
+  let best = null, bestScore = -1;
+  rows.forEach(r=>{
+    if(new Date(r.time) < now) return;
+    const s = beerIndex(r.temp, r.wind, r.hum, r.cloud, r.precipProb, r.precipMm);
+    if(s > bestScore){ bestScore = s; best = r; }
+  });
+  return best ? {time:best.time, score:bestScore} : null;
+}
+
+function renderBestTimeCard(rows, now){
+  const best = findBestUpcoming(rows, now);
+  if(!best) return '';
+  const label = bestTimeLabel(new Date(best.time), now);
+  const color = scoreColor(best.score);
+  return `<div class="home-best">
+    <div class="home-best-label">Høyeste pilsindex de neste dagene</div>
+    <div class="home-best-value">${label} <span class="home-best-score" style="background:${color}22;color:${color}">${best.score.toFixed(2)}</span></div>
+  </div>`;
+}
+
+async function renderAll(lat, lon, name){
+  document.getElementById('locName').textContent = name;
+  document.getElementById('statusMsg').textContent = 'Henter værvarsel…';
+  try{
+    const data = await fetchWeather(lat, lon);
+    const rows = buildHourly(data);
+    const now = new Date();
+    // find index closest to current time
+    let curIdx = 0;
+    let bestDiff = Infinity;
+    rows.forEach((r,i)=>{
+      const diff = Math.abs(new Date(r.time)-now);
+      if(diff<bestDiff){bestDiff=diff;curIdx=i;}
+    });
+    const cur = rows[curIdx];
+    const curScore = beerIndex(cur.temp,cur.wind,cur.hum,cur.cloud,cur.precipProb,cur.precipMm);
+    const curColor = scoreColor(curScore);
+
+    renderHome(curScore, curColor, cur);
+
+    const dayGroups = buildDayGroups(rows, now);
+
+    const html = `
+      ${renderBestTimeCard(rows, now)}
+      <div class="day-list">${dayGroups.map(renderDayCard).join('')}</div>
+    `;
+    document.getElementById('content').innerHTML = html;
+  }catch(e){
+    document.getElementById('content').innerHTML = `<div class="status">Kunne ikke laste værdata. ${e.message||''}</div>`;
+    const verdict = document.getElementById('homeVerdict');
+    if(verdict) verdict.textContent = 'Kunne ikke laste værvarselet.';
+  }
+}
+
+function saveLocation(lat, lon, name){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({lat,lon,name})); }catch(e){}
+}
+function loadSavedLocation(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)); }catch(e){ return null; }
+}
+
+function useGeolocation(){
+  document.getElementById('statusMsg') && (document.getElementById('content').innerHTML='<div class="status">Henter din lokasjon…</div>');
+  if(!navigator.geolocation){
+    document.getElementById('locName').textContent = 'Lokasjon utilgjengelig';
+    toggleSearch(true);
+    showView('details');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const {latitude, longitude} = pos.coords;
+    const name = await reverseGeocode(latitude, longitude);
+    saveLocation(latitude, longitude, name);
+    renderAll(latitude, longitude, name);
+  }, err=>{
+    document.getElementById('locName').textContent = 'Lokasjon avslått';
+    document.getElementById('content').innerHTML = '<div class="status">Tilgang til lokasjon ble avslått. Søk etter en by i stedet.</div>';
+    toggleSearch(true);
+    showView('details');
+  }, {timeout:10000});
+}
+
+function toggleSearch(force){
+  const row = document.getElementById('searchRow');
+  if(force===true) row.classList.add('active');
+  else if(force===false) row.classList.remove('active');
+  else row.classList.toggle('active');
+}
+
+// --- Home / Details / About page toggle ---
+const VIEWS = ['home', 'details', 'about'];
+function showView(view){
+  VIEWS.forEach(v=>{
+    document.getElementById(v + 'View').hidden = view !== v;
+    const btn = document.getElementById(v + 'TabBtn');
+    btn.classList.toggle('active', view === v);
+    btn.setAttribute('aria-selected', view === v);
+  });
+
+  try{ localStorage.setItem(VIEW_KEY, view); }catch(e){}
+}
+
+document.getElementById('homeTabBtn').addEventListener('click', ()=>showView('home'));
+document.getElementById('detailsTabBtn').addEventListener('click', ()=>showView('details'));
+document.getElementById('aboutTabBtn').addEventListener('click', ()=>showView('about'));
+
+document.getElementById('changeLocBtn').addEventListener('click', ()=>toggleSearch());
+document.getElementById('useLocBtn').addEventListener('click', ()=>{ toggleSearch(false); useGeolocation(); });
+
+// Tomorrow's card can expand from 6-hour blocks to the full hour-by-hour
+// view. Delegated on #content since its contents are re-rendered on refresh.
+document.getElementById('content').addEventListener('click', e=>{
+  const btn = e.target.closest('.day-toggle');
+  if(!btn) return;
+  const card = btn.closest('.day-card');
+  const quarters = card.querySelector('.day-rows[data-mode="quarters"]');
+  const hourly = card.querySelector('.day-rows[data-mode="hourly"]');
+  const willExpand = btn.getAttribute('aria-expanded') !== 'true';
+  quarters.hidden = willExpand;
+  hourly.hidden = !willExpand;
+  btn.setAttribute('aria-expanded', String(willExpand));
+  btn.querySelector('.chev').textContent = willExpand ? '▴' : '▾';
+});
+
+let searchTimer;
+document.getElementById('cityInput').addEventListener('input', e=>{
+  clearTimeout(searchTimer);
+  const q = e.target.value.trim();
+  const dd = document.getElementById('dropdown');
+  if(q.length<2){ dd.style.display='none'; return; }
+  searchTimer = setTimeout(async ()=>{
+    try{
+      const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=no`);
+      const j = await r.json();
+      if(!j.results || j.results.length===0){ dd.style.display='none'; return; }
+      dd.innerHTML = j.results.map(res=>{
+        const label = [res.name, res.admin1, res.country].filter(Boolean).join(', ');
+        return `<div data-lat="${res.latitude}" data-lon="${res.longitude}" data-name="${res.name}">${label}</div>`;
+      }).join('');
+      dd.style.display='block';
+      dd.querySelectorAll('div').forEach(div=>{
+        div.addEventListener('click', ()=>{
+          const lat = parseFloat(div.dataset.lat), lon = parseFloat(div.dataset.lon), name = div.dataset.name;
+          dd.style.display='none';
+          document.getElementById('cityInput').value='';
+          toggleSearch(false);
+          saveLocation(lat, lon, name);
+          renderAll(lat, lon, name);
+        });
+      });
+    }catch(err){ dd.style.display='none'; }
+  }, 350);
+});
+
+// init view (remember last page, but default to Home)
+const savedView = (function(){ try{ return localStorage.getItem(VIEW_KEY); }catch(e){ return null; } })();
+showView(VIEWS.includes(savedView) ? savedView : 'home');
+
+// init location + weather
+const saved = loadSavedLocation();
+if(saved && saved.lat && saved.lon){
+  renderAll(saved.lat, saved.lon, saved.name);
+}else{
+  useGeolocation();
+}
+
+// register service worker for installability (no-ops on file:// during local testing)
+if('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')){
+  navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+}
+</script>
 </body>
 </html>
