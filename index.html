@@ -29,12 +29,12 @@
     <div class="loc-wrap">
       <div class="loc-box">
         <span id="locName">Lokaliserer...</span>
+        <input id="cityInput" class="loc-input" placeholder="Søk etter by…" autocomplete="off" hidden>
         <button id="changeLocBtn">&#128269;</button>
       </div>
 
       <div class="search-row" id="searchRow">
         <div id="searchResults">
-          <input id="cityInput" placeholder="Søk etter by…" autocomplete="off">
           <div class="dropdown" id="dropdown" style="display:none;"></div>
         </div>
         <button id="useLocBtn">Bruk min lokasjon</button>
@@ -80,6 +80,7 @@
       <b>Luftfuktighet</b> — mest behagelig rundt 50%. Ikke så behagelig i Sahara eller Amazonas.<br><br>
       <b>Skydekke</b> — litt skygge er nice, helt overskyet er ganske teit.<br><br>
       <b>Sannsynlighet for nedbør</b> — ingen liker regn når det er tid for utepils. Høy sjanse for regn drar poengsummen kraftig ned, uansett alt annet.<br><br>
+      <b>Tips</b> - Innstaller appen ved å legge den til på hjemskjermen din for en bedre opplevelse og rask tilgang<br><br>
       Data hentet fra <b>Open-Meteo</b> (krever ingen API-nøkkel).
     </div>
   </section>
@@ -89,44 +90,30 @@
 const STORAGE_KEY = 'beerindex_location';
 const VIEW_KEY = 'pilsindex_view';
 
-// Continuous red→orange→yellow→green gradient, built by linearly
-// interpolating between the same four colors the old discrete bands used
-// (so the palette still feels the same, it just blends smoothly now).
-const SCORE_COLOR_STOPS = [
-  {s:0,    c:'#c0392b'}, // red
-  {s:0.25, c:'#e07a2c'}, // orange
-  {s:0.5,  c:'#e3a72e'}, // yellow
-  {s:0.75, c:'#7cb342'}, // light green
-  {s:1,    c:'#3a9d4d'}  // green
-];
-function hexToRgb(hex){
-  const h = hex.replace('#','');
-  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
-}
-function rgbToHex(rgb){
-  return '#' + rgb.map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join('');
-}
-function scoreColor(score){
-  const s = Math.max(0, Math.min(1, score));
-  let lo = SCORE_COLOR_STOPS[0], hi = SCORE_COLOR_STOPS[SCORE_COLOR_STOPS.length-1];
-  for(let i=0; i<SCORE_COLOR_STOPS.length-1; i++){
-    if(s >= SCORE_COLOR_STOPS[i].s && s <= SCORE_COLOR_STOPS[i+1].s){
-      lo = SCORE_COLOR_STOPS[i]; hi = SCORE_COLOR_STOPS[i+1];
-      break;
-    }
-  }
-  const t = hi.s === lo.s ? 0 : (s - lo.s) / (hi.s - lo.s);
-  const rgbLo = hexToRgb(lo.c), rgbHi = hexToRgb(hi.c);
-  const blended = [0,1,2].map(i => rgbLo[i] + (rgbHi[i]-rgbLo[i]) * t);
-  return rgbToHex(blended);
+function scoreColor(s){
+  if(s<0.1) return '#c0392b'; // red
+  if(s<0.2) return '#cb4f2b';
+  if(s<0.3) return '#d5642c';
+  if(s<0.4) return '#e07a2c'; // orange
+  if(s<0.5) return '#e1892d';
+  if(s<0.6) return '#e2982d';
+  if(s<0.7) return '#e3a72e'; // yellow
+  if(s<0.8) return '#b0dd2d';
+  if(s<0.9) return '#47d62c';
+  return '#2ecc71';           // green (brighter)
 }
 function verdictText(s){
-  if(s>=0.9) return 'Livsfarlig å være en utepils';
-  if(s>=0.75) return 'Ganske greit med en halvliter nå ja';
-  if(s>=0.5) return 'Ikke tenk, bare pils';
-  if(s>=0.25) return 'Finnes ikke dårlig vær, bare dårlig pils';
-  return 'Kanskje best å komme seg på puben';
+  const pick = (a,b) => Math.random()<0.5 ? a : b;
+  if(s<0.125) return pick('Kanskje best å komme seg på puben', 'Det finnes puber av en grunn');
+  if(s<0.25) return pick('Utepils for de dedikerte', 'Karakterbyggende utepils');
+  if(s<0.375) return pick('Jakke anbefales', 'Finnes ikke dårlig vær, bare dårlig pils');
+  if(s<0.5) return pick('Pilsen holder seg hvertfall kald en stund', 'Holder kanskje med én utepils');
+  if(s<0.625) return pick('Helt kurant med utepils', 'Ingen kommer til å angre på én utepils');
+  if(s<0.75) return pick('Det lukter utepils', 'Fare for "bare en til"');
+  if(s<0.875) return pick('En kald en hadde gjort seg', 'Ganske digg med en halvliter');
+  return pick('Livsfarlig å være en utepils', 'På med raske solbriller og fram med pilsen');
 }
+
 function weatherEmoji(cloudCover, rain){
   if(rain && cloudCover < 25) return '🌦️'; // sunny rain
   if(rain) return '🌧️';                    // rain
@@ -435,9 +422,21 @@ function useGeolocation(){
 
 function toggleSearch(force){
   const row = document.getElementById('searchRow');
-  if(force===true) row.classList.add('active');
-  else if(force===false) row.classList.remove('active');
-  else row.classList.toggle('active');
+  const locName = document.getElementById('locName');
+  const cityInput = document.getElementById('cityInput');
+  const active = force===true ? true : force===false ? false : !row.classList.contains('active');
+
+  row.classList.toggle('active', active);
+  // Swap the location pill's text for the search input in place, rather
+  // than only opening the suggestions row underneath it.
+  locName.hidden = active;
+  cityInput.hidden = !active;
+  if(active){
+    cityInput.value = '';
+    cityInput.focus();
+  }else{
+    document.getElementById('dropdown').style.display = 'none';
+  }
 }
 
 // --- Home / Details / About page toggle ---
