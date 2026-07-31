@@ -39,12 +39,10 @@ header{display:flex;align-items:center;justify-content:space-between;flex-wrap:n
    home-page size override below always wins the cascade. */
 .gauge{width:120px;height:120px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;flex-shrink:0;color:#fff;box-shadow:inset 0 0 0 6px rgba(255,255,255,0.25);}
 .gauge .num{font-size:34px;font-weight:800;line-height:1;}
-.gauge .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;opacity:0.9;margin-top:2px;}
 
 .home-hero{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:44px 20px 40px;text-align:center;}
 .gauge--home{width:300px;height:300px;}
 .gauge--home .num{font-size:68px;}
-.gauge--home .lbl{font-size:14px;}
 .home-verdict{font-size:17px;font-weight:700;color:var(--ink);max-width:320px;margin:0;}
 
 /* Current conditions under the circle: just the weather emoji + temperature */

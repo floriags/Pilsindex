@@ -53,7 +53,6 @@
     <div class="home-hero">
       <div class="gauge gauge--home" id="homeGauge" aria-label="Nåværende pilsindex">
         <div class="num" id="homeGaugeNum">&#127867;</div>
-        <div class="lbl">Pilsindex</div>
       </div>
       <p class="home-verdict" id="homeVerdict">Henter værvarsel...</p>
 
@@ -74,13 +73,8 @@
   <!-- ABOUT: what the Beer Index is and how it's calculated -->
   <section class="page" id="aboutView" hidden>
     <div class="info-panel">
-      <b>Pilsindexen</b> viser hvor deilig det er å ta seg en utepils time for time. Verdien blir kalkulert basert på flere faktorer:<br><br>
-      <b>Temperatur</b> — best rundt 25°C, og synker mot kaldere eller altfor varme ytterpunkter.<br><br>
-      <b>Vind</b> — en lett bris er ideelt, mye vind trekker ned.<br><br>
-      <b>Luftfuktighet</b> — mest behagelig rundt 50%. Ikke så behagelig i Sahara eller Amazonas.<br><br>
-      <b>Skydekke</b> — litt skygge er nice, helt overskyet er ganske teit.<br><br>
-      <b>Sannsynlighet for nedbør</b> — ingen liker regn når det er tid for utepils. Høy sjanse for regn drar poengsummen kraftig ned, uansett alt annet.<br><br>
-      <b>Tips</b> - Innstaller appen ved å legge den til på hjemskjermen din for en bedre opplevelse og rask tilgang<br><br>
+      <b>Pilsindexen</b> viser hvor gode forholdene er for en utepils, time for time. Indeksen beregnes ut fra flere faktorer, blant annet temperatur, vind og skydekke.<br><br>
+      <b>Tips</b> - For en bedre opplevelse på mobil: installer appen til hjemskjermen din (Del → «Legg til på Hjem-skjerm» på iPhone, eller «Installer app» i menyen på Android).<br><br>
       Data hentet fra <b>Open-Meteo</b> (krever ingen API-nøkkel).
     </div>
   </section>
@@ -88,7 +82,6 @@
 
 <script>
 const STORAGE_KEY = 'beerindex_location';
-const VIEW_KEY = 'pilsindex_view';
 
 function scoreColor(s){
   if(s<0.1) return '#c0392b'; // red
@@ -115,7 +108,7 @@ function verdictText(s){
 }
 
 function weatherEmoji(cloudCover, rain){
-  if(rain && cloudCover < 25) return '🌦️'; // sunny rain
+  if(rain && cloudCover < 33) return '🌦️'; // sunny rain
   if(rain) return '🌧️';                    // rain
   if(cloudCover < 10) return '☀️';         // sun
   if(cloudCover < 33) return '🌤️';         // sun little cloud
@@ -124,36 +117,58 @@ function weatherEmoji(cloudCover, rain){
   return '☁️';                             // cloudy
 }
 
-// Smooth per-factor curves (each 0-1), same weighted-average shape as
-// before, just rescaled to 0-1 output. The temperature curve's center was
-// nudged from 24 to 25 to match the ideal point from the Kotlin reference.
+// Per-factor scores are banded exactly like the reference (each tier a
+// flat 0-1 value, narrowest band first), not smoothed curves - so a value
+// well inside the ideal range genuinely scores as well as it should,
+// rather than a formula quietly shaving points off for no clear reason.
 function tempScore(t){
-  // gaussian centered at 25, sigma 7.5
-  return Math.max(0, Math.exp(-Math.pow(t-25,2)/(2*7.5*7.5)));
-}
-function windScore(w){
-  if(w<=5) return 0.8+0.04*w;
-  if(w<=15) return 1.0;
-  if(w<=40) return Math.max(0.25, 1-(w-15)*0.03);
-  return Math.max(0, 0.25-(w-40)*0.02);
-}
-function humidityScore(h){
-  if(h>=40 && h<=60) return 1.0;
-  if(h<40) return Math.max(0.3, 1-(40-h)*0.015);
-  return Math.max(0.2, 1-(h-60)*0.015);
+  if(t>=24 && t<=26) return 1.0;
+  if(t>=22 && t<=29) return 0.9;
+  if(t>=20 && t<=32) return 0.8;
+  if(t>=18 && t<=35) return 0.7;
+  if(t>=16 && t<=38) return 0.6;
+  if(t>=14 && t<=40) return 0.5;
+  if(t>=12 && t<=42) return 0.4;
+  if(t>=10 && t<=44) return 0.3;
+  if(t>=8  && t<=47) return 0.2;
+  if(t>=6  && t<=50) return 0.1;
+  return 0.0;
 }
 function cloudScore(c){
-  return Math.max(0.6, 1-0.003*Math.abs(c-45));
+  if(c<10) return 1.0;
+  if(c<33) return 0.9;
+  if(c<67) return 0.8;
+  if(c<90) return 0.7;
+  return 0.5;
 }
-// Weighted average of the four factors above, with rain (both the chance
-// of it and how much) subtracted as a separate penalty at the end - so one
-// bad factor dents the score instead of wiping it out like a straight
-// product would.
+function humidityScore(h){
+  if(h>=40 && h<=50) return 1.0;
+  if(h>=30 && h<=60) return 0.9;
+  if(h>=20 && h<=70) return 0.8;
+  if(h>=10 && h<=80) return 0.7;
+  return 0.5;
+}
+function windScore(w){
+  if(w<=3) return 1.0;
+  if(w<=5) return 0.9;
+  if(w<=7) return 0.8;
+  if(w<=9) return 0.7;
+  return 0.5;
+}
+// Weighted AVERAGE of the bands above - not a product like the original
+// Kotlin version multiplied them - so one factor being a tier below ideal
+// only costs a slice of the score instead of compounding with every other
+// factor and crushing it. Weighted by importance: temperature dominates,
+// cloud cover is a clear second, wind and humidity matter much less. Rain
+// is handled separately: subtracted at the end, and actual current rain
+// (not just a forecast chance of it) is floored so it never zeroes the
+// score out completely - even in a real downpour there's still a sliver.
 function beerIndex(t,w,h,c,precipProb,precipMm){
-  const base = (0.35*tempScore(t)+0.20*windScore(w)+0.15*humidityScore(h)+0.10*cloudScore(c))/0.80;
-  let rainPenalty = (precipProb/100)*0.5;
-  rainPenalty += Math.min(0.3, (precipMm||0)*0.1);
-  return Math.max(0, Math.min(1, base-rainPenalty));
+  const base = 0.55*tempScore(t) + 0.25*cloudScore(c) + 0.10*windScore(w) + 0.10*humidityScore(h);
+  let penalty = (precipProb/100)*0.5 + Math.min(0.3, (precipMm||0)*0.1);
+  let score = Math.max(0, Math.min(1, base-penalty));
+  if(precipMm > 0) score = Math.max(0.12, score);
+  return score;
 }
 
 function fmtHour(iso){
@@ -330,7 +345,7 @@ function renderBestTimeCard(rows, now){
   const label = bestTimeLabel(new Date(best.time), now);
   const color = scoreColor(best.score);
   return `<div class="home-best">
-    <div class="home-best-label">Høyeste pilsindex de neste dagene</div>
+    <div class="home-best-label">Beste tidspunkt for pils</div>
     <div class="home-best-value">${label} <span class="home-best-score" style="background:${color}22;color:${color}">${best.score.toFixed(2)}</span></div>
   </div>`;
 }
@@ -448,8 +463,6 @@ function showView(view){
     btn.classList.toggle('active', view === v);
     btn.setAttribute('aria-selected', view === v);
   });
-
-  try{ localStorage.setItem(VIEW_KEY, view); }catch(e){}
 }
 
 document.getElementById('homeTabBtn').addEventListener('click', ()=>showView('home'));
@@ -504,9 +517,8 @@ document.getElementById('cityInput').addEventListener('input', e=>{
   }, 350);
 });
 
-// init view (remember last page, but default to Home)
-const savedView = (function(){ try{ return localStorage.getItem(VIEW_KEY); }catch(e){ return null; } })();
-showView(VIEWS.includes(savedView) ? savedView : 'home');
+// init view - always start on Home
+showView('home');
 
 // init location + weather
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;

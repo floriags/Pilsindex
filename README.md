@@ -1,8 +1,14 @@
-# BeerIndex
-It's five o'clock somewhere🍻
+# Pilsindex
+It's five o' clock somewhere🍻
 
-## Documentation
-Uses weather data to calculate the beer index where you are.
+## Dokumentasjon
+Pilsindexen viser hvor gode forholdene er for en utepils, time for time. Indeksen beregnes ut fra flere faktorer, blant annet temperatur, vind og skydekke.
 
-## Instructions
-Install the app and start drinking
+Data hentet fra Open-Meteo (krever ingen API-nøkkel).
+
+Værdata hentes fra [Open-Meteo](https://open-meteo.com/), helt gratis og uten API-nøkkel.
+
+## Bruk
+Åpne siden og gi appen tilgang til posisjonen din, eller søk opp en by manuelt.
+
+Tips - For en bedre opplevelse på mobil: installer appen til hjemskjermen din (Del → «Legg til på Hjem-skjerm» på iPhone, eller «Installer app» i menyen på Android).
