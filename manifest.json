@@ -1,7 +1,7 @@
 {
   "name": "Pilsindex",
   "short_name": "Pilsindex",
-  "description": "Beer Index forecast — how good it is to sit outside with a beer, hour by hour.",
+  "description": "Pilsindex — hvor deilig er det å ta seg en utepils, time for time.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

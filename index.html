@@ -21,32 +21,9 @@
   <header>
     <div class="brand">
       <div class="logo">&#127867;</div>
-      <div>
-        <h1>Pilsindex</h1>
-        <small>It's five o' clock somewhere!</small>
-      </div>
-    </div>
-    <div class="loc-wrap">
-      <div class="loc-box">
-        <span id="locName">Lokaliserer...</span>
-        <input id="cityInput" class="loc-input" placeholder="Søk etter by…" autocomplete="off" hidden>
-        <button id="changeLocBtn">&#128269;</button>
-      </div>
-
-      <div class="search-row" id="searchRow">
-        <div id="searchResults">
-          <div class="dropdown" id="dropdown" style="display:none;"></div>
-        </div>
-        <button id="useLocBtn">Bruk min lokasjon</button>
-      </div>
+      <h1>Pilsindex</h1>
     </div>
   </header>
-
-  <nav class="view-toggle" role="tablist" aria-label="Page">
-    <button class="view-btn active" id="homeTabBtn" data-view="home" role="tab" aria-selected="true">&#8962;</button>
-    <button class="view-btn" id="detailsTabBtn" data-view="details" role="tab" aria-selected="false">&#9776;</button>
-    <button class="view-btn" id="aboutTabBtn" data-view="about" role="tab" aria-selected="false">&#9432;</button>
-  </nav>
 
   <!-- HOME: title (above), current Beer Index, current conditions, best time this week -->
   <section class="page" id="homeView">
@@ -78,6 +55,29 @@
       Data hentet fra <b>Open-Meteo</b> (krever ingen API-nøkkel).
     </div>
   </section>
+
+  <!-- SEARCH: current location + change it (search or use device location) -->
+  <section class="page" id="searchView" hidden>
+    <div class="search-panel">
+      <div class="search-current">Nåværende: <span class="loc-name">Lokaliserer...</span></div>
+      <div id="searchResults">
+        <input id="cityInput" placeholder="Søk etter by…" autocomplete="off">
+        <div class="dropdown" id="dropdown" style="display:none;"></div>
+      </div>
+      <button id="useLocBtn">Bruk min lokasjon</button>
+      <div class="status" id="searchStatus" hidden></div>
+    </div>
+  </section>
+
+  <nav class="view-toggle" role="tablist" aria-label="Page">
+    <button class="view-btn active" id="homeTabBtn" data-view="home" role="tab" aria-selected="true">&#8962;</button>
+    <button class="view-btn" id="detailsTabBtn" data-view="details" role="tab" aria-selected="false">&#9776;</button>
+    <button class="view-btn" id="aboutTabBtn" data-view="about" role="tab" aria-selected="false">&#9432;</button>
+    <button class="view-btn view-btn--search" id="searchTabBtn" data-view="search" role="tab" aria-selected="false">
+      <span>&#128269;</span>
+      <span class="loc-name">Lokaliserer...</span>
+    </button>
+  </nav>
 </div>
 
 <script>
@@ -345,13 +345,19 @@ function renderBestTimeCard(rows, now){
   const label = bestTimeLabel(new Date(best.time), now);
   const color = scoreColor(best.score);
   return `<div class="home-best">
-    <div class="home-best-label">Beste tidspunkt for pils</div>
+    <div class="home-best-label">Beste tidspunkt for utepils</div>
     <div class="home-best-value">${label} <span class="home-best-score" style="background:${color}22;color:${color}">${best.score.toFixed(2)}</span></div>
   </div>`;
 }
 
+// Current location name is shown in two places (Home page + Search tab),
+// both carrying the shared .loc-name class, so update them together.
+function setLocationName(text){
+  document.querySelectorAll('.loc-name').forEach(el => el.textContent = text);
+}
+
 async function renderAll(lat, lon, name){
-  document.getElementById('locName').textContent = name;
+  setLocationName(name);
   // #content may currently hold the day-cards from a previous city (or an
   // error message), not the original #statusMsg element, so replace it
   // outright rather than assuming a specific child still exists.
@@ -394,12 +400,20 @@ function loadSavedLocation(){
   try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)); }catch(e){ return null; }
 }
 
+// Shows a message in the Search tab and switches to it - used whenever
+// location resolution needs the user to step in (denied, unavailable, or
+// just never responded).
+function showSearchStatus(text){
+  const status = document.getElementById('searchStatus');
+  status.textContent = text;
+  status.hidden = false;
+  showView('search');
+}
+
 function useGeolocation(){
-  document.getElementById('content').innerHTML = '<div class="status">Henter din lokasjon…</div>';
   if(!navigator.geolocation){
-    document.getElementById('locName').textContent = 'Lokasjon utilgjengelig';
-    toggleSearch(true);
-    showView('details');
+    setLocationName('Lokasjon utilgjengelig');
+    showSearchStatus('Denne nettleseren støtter ikke posisjon. Søk etter en by i stedet.');
     return;
   }
   // Some mobile browsers (particularly installed/standalone PWAs on iOS)
@@ -410,10 +424,8 @@ function useGeolocation(){
   const watchdog = setTimeout(()=>{
     if(settled) return;
     settled = true;
-    document.getElementById('locName').textContent = 'Fant ikke lokasjon';
-    document.getElementById('content').innerHTML = '<div class="status">Kunne ikke hente posisjonen din. Søk etter en by i stedet.</div>';
-    toggleSearch(true);
-    showView('details');
+    setLocationName('Fant ikke lokasjon');
+    showSearchStatus('Kunne ikke hente posisjonen din. Søk etter en by i stedet.');
   }, 12000);
 
   navigator.geolocation.getCurrentPosition(async pos=>{
@@ -424,38 +436,18 @@ function useGeolocation(){
     const name = await reverseGeocode(latitude, longitude);
     saveLocation(latitude, longitude, name);
     renderAll(latitude, longitude, name);
+    showView('home');
   }, err=>{
     if(settled) return;
     settled = true;
     clearTimeout(watchdog);
-    document.getElementById('locName').textContent = 'Lokasjon avslått';
-    document.getElementById('content').innerHTML = '<div class="status">Tilgang til lokasjon ble avslått. Søk etter en by i stedet.</div>';
-    toggleSearch(true);
-    showView('details');
+    setLocationName('Lokasjon avslått');
+    showSearchStatus('Tilgang til lokasjon ble avslått. Søk etter en by i stedet.');
   }, {timeout:10000});
 }
 
-function toggleSearch(force){
-  const row = document.getElementById('searchRow');
-  const locName = document.getElementById('locName');
-  const cityInput = document.getElementById('cityInput');
-  const active = force===true ? true : force===false ? false : !row.classList.contains('active');
-
-  row.classList.toggle('active', active);
-  // Swap the location pill's text for the search input in place, rather
-  // than only opening the suggestions row underneath it.
-  locName.hidden = active;
-  cityInput.hidden = !active;
-  if(active){
-    cityInput.value = '';
-    cityInput.focus();
-  }else{
-    document.getElementById('dropdown').style.display = 'none';
-  }
-}
-
-// --- Home / Details / About page toggle ---
-const VIEWS = ['home', 'details', 'about'];
+// --- Home / Details / About / Search page toggle ---
+const VIEWS = ['home', 'details', 'about', 'search'];
 function showView(view){
   VIEWS.forEach(v=>{
     document.getElementById(v + 'View').hidden = view !== v;
@@ -468,9 +460,13 @@ function showView(view){
 document.getElementById('homeTabBtn').addEventListener('click', ()=>showView('home'));
 document.getElementById('detailsTabBtn').addEventListener('click', ()=>showView('details'));
 document.getElementById('aboutTabBtn').addEventListener('click', ()=>showView('about'));
+document.getElementById('searchTabBtn').addEventListener('click', ()=>{
+  // Toggle: pressing it again while already on Search goes back to Home.
+  const isSearchOpen = !document.getElementById('searchView').hidden;
+  showView(isSearchOpen ? 'home' : 'search');
+});
 
-document.getElementById('changeLocBtn').addEventListener('click', ()=>toggleSearch());
-document.getElementById('useLocBtn').addEventListener('click', ()=>{ toggleSearch(false); useGeolocation(); });
+document.getElementById('useLocBtn').addEventListener('click', ()=>useGeolocation());
 
 // Tomorrow's card can expand from 6-hour blocks to the full hour-by-hour
 // view. Delegated on #content since its contents are re-rendered on refresh.
@@ -508,9 +504,10 @@ document.getElementById('cityInput').addEventListener('input', e=>{
           const lat = parseFloat(div.dataset.lat), lon = parseFloat(div.dataset.lon), name = div.dataset.name;
           dd.style.display='none';
           document.getElementById('cityInput').value='';
-          toggleSearch(false);
+          document.getElementById('searchStatus').hidden = true;
           saveLocation(lat, lon, name);
           renderAll(lat, lon, name);
+          showView('home');
         });
       });
     }catch(err){ dd.style.display='none'; }
@@ -530,9 +527,7 @@ if(saved && saved.lat && saved.lon){
   // Safari and often silently ignore a geolocation request that isn't
   // triggered by a direct tap, so it just hangs. Wait for the user to tap
   // "Bruk min lokasjon" (or search) instead of auto-requesting on launch.
-  toggleSearch(true);
-  showView('details');
-  document.getElementById('content').innerHTML = '<div class="status">Trykk «Bruk min lokasjon» eller søk etter en by for å komme i gang.</div>';
+  showSearchStatus('Trykk «Bruk min lokasjon» eller søk etter en by for å komme i gang.');
 }else{
   useGeolocation();
 }

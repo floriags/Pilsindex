@@ -22,16 +22,29 @@ body{
   color:var(--ink);
   min-height:100vh;
 }
-.wrap{max-width:452px;margin:0 auto;padding:calc(20px + env(safe-area-inset-top)) 16px calc(60px + env(safe-area-inset-bottom));}
-/* No wrap: the location pill must always stay on the same line as the
-   brand and anchored to the right, otherwise its search popover (which is
-   positioned relative to it) ends up misplaced. Long text truncates with
-   an ellipsis instead of wrapping the whole header to a second line. */
-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:10px;margin-bottom:18px;}
+.wrap{max-width:452px;margin:0 auto;padding:calc(20px + env(safe-area-inset-top)) 16px calc(88px + env(safe-area-inset-bottom));}
+header{display:flex;justify-content:center;margin-bottom:18px;}
 
-.view-toggle{display:flex;justify-content:center;gap:8px;margin-bottom:22px;}
-.view-btn{padding:8px 22px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-weight:700;font-size:13.5px;cursor:pointer;box-shadow:var(--shadow);}
+/* Fixed to the bottom of the viewport so it stays visible while scrolling
+   (e.g. through the long Details list), matching the app's own max-width
+   so it lines up with the rest of the centered content. */
+.view-toggle{
+  display:flex;justify-content:flex-start;gap:8px;
+  position:fixed;left:0;right:0;bottom:0;margin:0 auto;
+  max-width:452px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  background:var(--bg);border-top:1px solid var(--line);z-index:40;
+}
+.view-btn{padding:8px 22px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-weight:700;font-size:13.5px;cursor:pointer;box-shadow:var(--shadow);flex-shrink:0;}
 .view-btn.active{background:var(--accent-dark);color:#fff;border-color:var(--accent-dark);}
+
+/* Search tab stretches to fill the rest of the row and doubles as the
+   current-location readout, instead of staying the same compact size as
+   the icon-only Home/Details/Info tabs. */
+.view-btn--search{
+  flex:1 1 auto;display:flex;align-items:center;justify-content:center;
+  gap:7px;min-width:0;overflow:hidden;
+}
+.view-btn--search .loc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
 .page[hidden]{display:none;}
 
@@ -63,47 +76,25 @@ header{display:flex;align-items:center;justify-content:space-between;flex-wrap:n
   .gauge--home{width:200px;height:200px;}
   .gauge--home .num{font-size:52px;}
 }
-.brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1 1 auto;overflow:hidden;}
-.brand .logo{font-size:34px;flex-shrink:0;}
-.brand > div{min-width:0;overflow:hidden;}
-.brand h1{font-size:24px;margin:0;letter-spacing:-0.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.brand small{display:block;color:var(--muted);font-size:12.5px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.loc-wrap{position:relative;flex-shrink:0;}
-.loc-box{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);padding:6px 10px;border-radius:999px;box-shadow:var(--shadow);font-size:13.5px;}
-.loc-box button{
-  border:none;background:transparent;color:var(--accent-dark);font-weight:600;cursor:pointer;font-size:13px;padding:2px 4px;
-}
-#locName{font-weight:600;display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;}
-.loc-input{
-  border:none;background:transparent;outline:none;padding:0;margin:0;
-  font:inherit;font-weight:600;color:var(--ink);width:110px;
-}
-.loc-input::placeholder{color:var(--muted);font-weight:400;}
+.brand{display:flex;align-items:center;gap:0px;}
+.brand .logo{font-size:34px;}
+.brand h1{font-size:24px;margin:0;letter-spacing:-0.02em;}
 
-/* Search popover: drops down right under the location pill, so it reads
-   as part of the same control instead of a separate full-width bar. */
-.search-row{
-  display:none;
-  flex-direction:column;
-  gap:8px;
-  position:absolute;
-  top:calc(100% + 8px);
-  right:0;
-  width:260px;
-  max-width:calc(100vw - 32px);
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:14px;
-  padding:14px;
-  box-shadow:var(--shadow);
-  z-index:30;
+/* Search tab: current location, then a plain in-page form to change it
+   (no more popover - it's just a page like the others now). */
+.search-panel{
+  background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:18px;box-shadow:var(--shadow);
 }
-.search-row.active{display:flex;}
-.search-row button{width:100%;padding:9px 14px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:600;cursor:pointer;}
-#searchResults{position:relative;width:100%;}
+.search-current{font-size:13.5px;color:var(--muted);margin-bottom:14px;}
+.search-current .loc-name{font-weight:700;color:var(--ink);}
+#searchResults{position:relative;width:100%;margin-bottom:10px;}
+#searchResults input{width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--line);font-size:14px;}
 #searchResults .dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);margin-top:4px;overflow:hidden;z-index:5;}
 #searchResults .dropdown div{padding:9px 12px;cursor:pointer;font-size:13.5px;}
 #searchResults .dropdown div:hover{background:#fdf1da;}
+.search-panel button{width:100%;padding:9px 14px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:600;cursor:pointer;}
+.search-panel .status{padding:14px 0 0;}
 
 .status{color:var(--muted);font-size:14px;padding:30px 0;text-align:center;}
 
