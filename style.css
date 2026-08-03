@@ -108,7 +108,8 @@ header{display:flex;justify-content:center;margin-bottom:18px;}
 }
 .day-card-header{
   padding:13px 18px;font-weight:700;font-size:14px;color:var(--ink);
-  background:rgba(184,114,28,0.06);border-bottom:1px solid var(--line);
+  background:#fdf8ef;border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:2;
 }
 .day-rows{display:flex;flex-direction:column;}
 .day-rows[hidden]{display:none;}
