@@ -352,37 +352,6 @@ function renderBestTimeCard(rows, now){
 
 // Current location name is shown in two places (Home page + Search tab),
 // both carrying the shared .loc-name class, so update them together.
-// Day-card headers are rounded like the rest of the card, but once one
-// actually pins flush against the true top of the viewport (position:sticky
-// with top:0) the rounded corners expose a sliver of page background behind
-// them. A 1px sentinel at the top of each card lets an IntersectionObserver
-// detect the exact moment a header becomes pinned, so corners can be
-// squared off only for that moment (boundingClientRect.top < 0 distinguishes
-// "scrolled past above" from "not reached yet", both of which report
-// isIntersecting: false).
-let stickyObserver;
-function setupStickyHeaders(){
-  const container = document.getElementById('content');
-  if(!container) return;
-  if(stickyObserver) stickyObserver.disconnect();
-  stickyObserver = new IntersectionObserver(entries=>{
-    entries.forEach(entry=>{
-      const header = entry.target.parentElement.querySelector('.day-card-header');
-      if(!header) return;
-      header.classList.toggle('is-pinned', !entry.isIntersecting && entry.boundingClientRect.top < 0);
-    });
-  }, {threshold:0});
-  container.querySelectorAll('.day-card').forEach(card=>{
-    let sentinel = card.querySelector('.stick-sentinel');
-    if(!sentinel){
-      sentinel = document.createElement('div');
-      sentinel.className = 'stick-sentinel';
-      card.insertBefore(sentinel, card.firstChild);
-    }
-    stickyObserver.observe(sentinel);
-  });
-}
-
 function setLocationName(text){
   document.querySelectorAll('.loc-name').forEach(el => el.textContent = text);
 }
@@ -417,7 +386,6 @@ async function renderAll(lat, lon, name){
       <div class="day-list">${dayGroups.map(renderDayCard).join('')}</div>
     `;
     document.getElementById('content').innerHTML = html;
-    setupStickyHeaders();
   }catch(e){
     document.getElementById('content').innerHTML = `<div class="status">Kunne ikke laste værdata. ${e.message||''}</div>`;
     const verdict = document.getElementById('homeVerdict');

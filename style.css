@@ -103,33 +103,13 @@ header{display:flex;justify-content:center;margin-bottom:18px;}
 .day-list{display:flex;flex-direction:column;gap:16px;}
 
 .day-card{
-  position:relative;
   background:var(--card);border:1px solid var(--line);border-radius:18px;
-  box-shadow:var(--shadow);
-  /* No overflow:hidden here - that would make this card its own "scrolling
-     box" and sticky headers can only stick relative to the actual page
-     scroll, not a non-scrolling ancestor. */
+  box-shadow:var(--shadow);overflow:hidden;
 }
 .day-card-header{
   padding:13px 18px;font-weight:700;font-size:14px;color:var(--ink);
-  /* Extra breathing room lives INSIDE the header's own padding, not as an
-     offset in its sticky position - any gap between the sticky element and
-     the true viewport top is transparent, so scrolled-past rows peek
-     through it. Pushing the text down with padding instead means the
-     header's own solid background covers that whole strip. max() guards
-     against installed/standalone mode sometimes reporting a 0 inset. */
-  padding-top:max(20px, calc(env(safe-area-inset-top) + 10px));
-  background:#fdf8ef;border-bottom:1px solid var(--line);
-  border-top-left-radius:18px;border-top-right-radius:18px;
-  position:sticky;top:0;z-index:2;
+  background:rgba(184,114,28,0.06);border-bottom:1px solid var(--line);
 }
-/* Once JS detects the header is actually pinned flush against the true
-   top of the viewport, its rounded corners would expose a sliver of page
-   background behind them - so square them off only for that moment. */
-.day-card-header.is-pinned{
-  border-top-left-radius:0;border-top-right-radius:0;
-}
-.stick-sentinel{position:absolute;top:0;left:0;width:1px;height:1px;visibility:hidden;pointer-events:none;}
 .day-rows{display:flex;flex-direction:column;}
 .day-rows[hidden]{display:none;}
 
@@ -137,7 +117,6 @@ header{display:flex;justify-content:center;margin-bottom:18px;}
   display:flex;align-items:center;justify-content:center;gap:4px;
   width:100%;padding:10px 0;border:none;border-top:1px solid rgba(43,29,14,0.06);
   background:transparent;color:var(--muted);font-weight:600;font-size:12.5px;cursor:pointer;
-  border-bottom-left-radius:18px;border-bottom-right-radius:18px;
 }
 .day-toggle:hover{background:rgba(184,114,28,0.05);}
 .day-toggle .chev{font-size:10px;}
