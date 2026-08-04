@@ -326,6 +326,11 @@ function renderHome(curScore, curColor, cur){
 // Find the single upcoming hour (across the whole week) with the highest
 // Beer Index - shown on the Details page as "Best time this week".
 function bestTimeLabel(date, now){
+  // Same "start of current hour" the row itself is keyed on (see
+  // findBestUpcoming/buildDayGroups) - if the best row IS the current hour,
+  // show "Nå" instead of "I dag kl. <hour>".
+  const currentHourStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours());
+  if(date.getTime() === currentHourStart.getTime()) return 'Nå';
   const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const dayIndex = Math.round((dayStart - todayStart) / 86400000);
@@ -334,10 +339,15 @@ function bestTimeLabel(date, now){
   return `${nbWeekday(date)} kl. ${time}`;
 }
 
+// Uses the start of the current hour (not the exact current time) as the
+// cutoff, same as buildDayGroups - otherwise the current hour's own row
+// (e.g. 13:00 when it's 13:14) would be treated as "past" and skipped, so
+// the current hour could never win even if it has the best score.
 function findBestUpcoming(rows, now){
+  const currentHourStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours());
   let best = null, bestScore = -1;
   rows.forEach(r=>{
-    if(new Date(r.time) < now) return;
+    if(new Date(r.time) < currentHourStart) return;
     const s = beerIndex(r.temp, r.wind, r.hum, r.cloud, r.precipProb, r.precipMm);
     if(s > bestScore){ bestScore = s; best = r; }
   });
