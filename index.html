@@ -360,7 +360,7 @@ function renderBestTimeCard(rows, now){
   const label = bestTimeLabel(new Date(best.time), now);
   const color = scoreColor(best.score);
   return `<div class="home-best">
-    <div class="home-best-label">Beste tidspunkt for utepils</div>
+    <div class="home-best-label">Beste tidspunkt for utepils de neste dagene</div>
     <div class="home-best-value">${label} <span class="home-best-score" style="background:${color}22;color:${color}">${best.score.toFixed(2)}</span></div>
   </div>`;
 }
