@@ -18,13 +18,33 @@ html{
 body{
   margin:0;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  /* Fixed (viewport-anchored, not document-anchored) so this always lines
+     up with the title bar below, which uses the exact same gradient - a
+     document-anchored gradient only fades once near the top of the page,
+     so a fixed title sitting at a constant screen position would drift
+     out of sync with it depending on how far you'd scrolled. */
   background:linear-gradient(180deg,#fff3d9 0%,#fff8ec 220px,var(--bg) 100%);
+  background-attachment:fixed;
   color:var(--ink);
   min-height:100vh;
 }
-.wrap{max-width:452px;margin:0 auto;padding:calc(20px + env(safe-area-inset-top)) 16px calc(88px + env(safe-area-inset-bottom));}
-header{display:flex;justify-content:center;margin-bottom:18px;}
-
+/* Top padding matches the fixed title bar's real measured height (see
+   updateHeaderHeightVar in the script) - the title is taken clean out of
+   the flow by position:fixed below, so .wrap has to reserve that space
+   itself instead. */
+.wrap{max-width:452px;margin:0 auto;padding:var(--header-h, 90px) 16px calc(88px + env(safe-area-inset-bottom));}
+/* Truly fixed (not sticky) - always on screen regardless of scroll, on
+   any page. Content (including day-card headers) scrolls up underneath
+   it. Matches .wrap's own max-width/centering since position:fixed takes
+   it out of .wrap's layout entirely. */
+header{
+  display:flex;justify-content:center;
+  position:fixed;left:0;right:0;top:0;z-index:10;
+  max-width:452px;margin:0 auto;
+  padding:max(20px, calc(env(safe-area-inset-top) + 10px)) 0 14px;
+  background:linear-gradient(180deg,#fff3d9 0%,#fff8ec 220px,var(--bg) 100%);
+  background-attachment:fixed;
+}
 /* Fixed to the bottom of the viewport so it stays visible while scrolling
    (e.g. through the long Details list), matching the app's own max-width
    so it lines up with the rest of the centered content. */
@@ -103,13 +123,33 @@ header{display:flex;justify-content:center;margin-bottom:18px;}
 .day-list{display:flex;flex-direction:column;gap:16px;}
 
 .day-card{
+  position:relative;
   background:var(--card);border:1px solid var(--line);border-radius:18px;
-  box-shadow:var(--shadow);overflow:hidden;
+  box-shadow:var(--shadow);
+  /* No overflow:hidden - that would make this card its own scrolling box
+     and break the header's stickiness relative to the actual page scroll. */
 }
 .day-card-header{
   padding:13px 18px;font-weight:700;font-size:14px;color:var(--ink);
-  background:rgba(184,114,28,0.06);border-bottom:1px solid var(--line);
+  /* Opaque, not the translucent rgba tint this used to be - it's sticky,
+     so a see-through background would let scrolled-past rows show through
+     it once it's pinned in place. Same apparent colour, just pre-mixed to
+     a solid hex. */
+  background:#fbf7f1;border-bottom:1px solid var(--line);
+  border-top-left-radius:18px;border-top-right-radius:18px;
+  position:sticky;top:var(--header-h, 90px);z-index:2;
 }
+/* JS (via a sentinel + IntersectionObserver, see setupStickyHeaders)
+   detects the exact moment this header is actually pinned flush against
+   the fixed title bar above - only then do the rounded corners get
+   squared off, since that's the only moment they'd otherwise expose a
+   sliver of whatever's scrolled behind them. Same height/padding always;
+   nothing changes except the corners, right when it matters. */
+.day-card-header.is-pinned{
+  border-top-left-radius:0;border-top-right-radius:0;
+  border-top:1px solid var(--line);
+}
+.stick-sentinel{position:absolute;top:0;left:0;width:1px;height:1px;visibility:hidden;pointer-events:none;}
 .day-rows{display:flex;flex-direction:column;}
 .day-rows[hidden]{display:none;}
 
@@ -117,6 +157,7 @@ header{display:flex;justify-content:center;margin-bottom:18px;}
   display:flex;align-items:center;justify-content:center;gap:4px;
   width:100%;padding:10px 0;border:none;border-top:1px solid rgba(43,29,14,0.06);
   background:transparent;color:var(--muted);font-weight:600;font-size:12.5px;cursor:pointer;
+  border-bottom-left-radius:18px;border-bottom-right-radius:18px;
 }
 .day-toggle:hover{background:rgba(184,114,28,0.05);}
 .day-toggle .chev{font-size:10px;}

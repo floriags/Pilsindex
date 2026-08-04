@@ -224,15 +224,19 @@ function buildHourly(data){
   return rows;
 }
 
-// Group hourly rows (>= now) into calendar days, in order.
+// Group hourly rows (>= the current hour) into calendar days, in order.
+// Using the start of the current hour rather than the exact current time
+// means today's table still includes the row for right now - e.g. at
+// 13:14 the 13:00 row (covering 13:00-14:00) is still "now", not the past.
 function buildDayGroups(rows, now){
   const groups = [];
   const map = new Map();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const currentHourStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours());
 
   rows.forEach(r=>{
     const d = new Date(r.time);
-    if(d < now) return;
+    if(d < currentHourStart) return;
     const k = dayKey(d);
     if(!map.has(k)){
       const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -351,16 +355,33 @@ function renderBestTimeCard(rows, now){
   </div>`;
 }
 
-// Current location name is shown in two places (Home page + Search tab),
-// both carrying the shared .loc-name class, so update them together.
-// Day-card headers are rounded like the rest of the card, but once one
-// actually pins flush against the true top of the viewport (position:sticky
-// with top:0) the rounded corners expose a sliver of page background behind
-// them. A 1px sentinel at the top of each card lets an IntersectionObserver
-// detect the exact moment a header becomes pinned, so corners can be
-// squared off only for that moment (boundingClientRect.top < 0 distinguishes
-// "scrolled past above" from "not reached yet", both of which report
-// isIntersecting: false).
+// The title bar is now position:fixed (out of normal flow entirely), so
+// .wrap and each day-card header both need to know its real rendered
+// height: .wrap uses it as top padding (to not render underneath the
+// title), and each day-card header uses it as its sticky "top" offset, so
+// it stacks right below the title. Measured via JS rather than hardcoded
+// since it varies with the safe-area inset.
+let headerHeightPx = 90;
+function updateHeaderHeightVar(){
+  const header = document.querySelector('header');
+  if(!header) return;
+  headerHeightPx = header.offsetHeight;
+  document.documentElement.style.setProperty('--header-h', headerHeightPx + 'px');
+}
+window.addEventListener('resize', updateHeaderHeightVar);
+window.addEventListener('orientationchange', updateHeaderHeightVar);
+
+// Each day-card header is rounded like the rest of the card, but once one
+// is actually pinned flush against the fixed title bar (position:sticky,
+// top:var(--header-h)) the rounded corners would expose a sliver of
+// whatever's scrolled behind it. A 1px sentinel at the top of each card
+// lets an IntersectionObserver detect the exact moment a header becomes
+// pinned, so corners can be squared off only for that moment -
+// boundingClientRect.top < headerHeightPx distinguishes "scrolled past
+// above" from "not reached yet", both of which report isIntersecting:
+// false. The observer's rootMargin is shifted down by the title's height
+// so the trigger line matches where the header actually sticks, not the
+// true viewport top.
 let stickyObserver;
 function setupStickyHeaders(){
   const container = document.getElementById('content');
@@ -370,9 +391,9 @@ function setupStickyHeaders(){
     entries.forEach(entry=>{
       const header = entry.target.parentElement.querySelector('.day-card-header');
       if(!header) return;
-      header.classList.toggle('is-pinned', !entry.isIntersecting && entry.boundingClientRect.top < 0);
+      header.classList.toggle('is-pinned', !entry.isIntersecting && entry.boundingClientRect.top < headerHeightPx);
     });
-  }, {threshold:0});
+  }, {rootMargin: `-${headerHeightPx}px 0px 0px 0px`, threshold:0});
   container.querySelectorAll('.day-card').forEach(card=>{
     let sentinel = card.querySelector('.stick-sentinel');
     if(!sentinel){
@@ -384,6 +405,8 @@ function setupStickyHeaders(){
   });
 }
 
+// Current location name is shown in two places (Home page + Search tab),
+// both carrying the shared .loc-name class, so update them together.
 function setLocationName(text){
   document.querySelectorAll('.loc-name').forEach(el => el.textContent = text);
 }
@@ -549,6 +572,7 @@ document.getElementById('cityInput').addEventListener('input', e=>{
 
 // init view - always start on Home
 showView('home');
+updateHeaderHeightVar();
 
 // init location + weather
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
