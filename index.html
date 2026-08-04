@@ -95,16 +95,17 @@ function scoreColor(s){
   if(s<0.9) return '#47d62c';
   return '#2ecc71';           // green (brighter)
 }
+
 function verdictText(s){
-  const pick = (a,b) => Math.random()<0.5 ? a : b;
-  if(s<0.125) return pick('Kanskje best å komme seg på puben', 'Det finnes puber av en grunn');
-  if(s<0.25) return pick('Utepils for de dedikerte', 'Karakterbyggende utepils');
-  if(s<0.375) return pick('Jakke anbefales', 'Finnes ikke dårlig vær, bare dårlig pils');
-  if(s<0.5) return pick('Pilsen holder seg hvertfall kald en stund', 'Holder kanskje med én utepils');
-  if(s<0.625) return pick('Helt kurant med utepils', 'Ingen kommer til å angre på én utepils');
-  if(s<0.75) return pick('Det lukter utepils', 'Fare for "bare en til"');
-  if(s<0.875) return pick('En kald en hadde gjort seg', 'Ganske digg med en halvliter');
-  return pick('Livsfarlig å være en utepils', 'På med raske solbriller og fram med pilsen');
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  if(s<0.125) return pick(['Kanskje best å komme seg på puben', 'Det finnes puber av en grunn', 'Hørt om innepils?']);
+  if(s<0.25) return pick(['Utepils for de dedikerte', 'Karakterbyggende utepils', 'Du må være virkelig tørst']);
+  if(s<0.375) return pick(['Jakke anbefales', 'Finnes ikke dårlig vær, bare dårlig pils', 'Du får uteserveringen for deg selv']);
+  if(s<0.5) return pick(['Pilsen holder seg hvertfall kald en stund', 'Holder kanskje med én utepils', 'Helt midt på treet']);
+  if(s<0.625) return pick(['Helt kurant med utepils', 'Ingen kommer til å angre på én utepils', 'Absolutt verdt et forsøk']);
+  if(s<0.75) return pick(['Det lukter utepils', 'Fare for "bare en til"', 'Skal ikke kimse av utepilsen']);
+  if(s<0.875) return pick(['En kald en hadde gjort seg', 'Ganske digg med en halvliter', 'Det er observert flere bjørnunger ute']);
+  return pick(['Livsfarlig å være en utepils', 'På med raske solbriller og fram med pilsen', 'Ølboksene skjelver i kjøleskapet på nærbutikken']);
 }
 
 function weatherEmoji(cloudCover, rain){
