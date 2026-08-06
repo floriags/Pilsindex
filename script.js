@@ -76,7 +76,7 @@ function windScore(w){
 // Time of day on its own, separate from the weather itself - a perfect-
 // weather hour at 3am still scores lower than the same weather at 5pm.
 function hourScore(hh){
-  if(hh < 4) return 0.75;
+  if(hh < 3) return 0.75;
   if(hh < 8) return 0.25;
   if(hh < 12) return 0.50;
   if(hh < 16) return 0.75;
