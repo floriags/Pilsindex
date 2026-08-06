@@ -168,16 +168,16 @@ function hourScore(hh){
 // only costs a slice of the score instead of compounding with every other
 // factor and crushing it. Weighted by importance: temperature dominates,
 // cloud cover is a clear second, wind, humidity and time of day matter
-// much less. Rain is handled separately: subtracted at the end, and
-// actual current rain (not just a forecast chance of it) is floored so it
-// never zeroes the score out completely - even in a real downpour there's
-// still a sliver.
-function beerIndex(t,w,h,c,precipProb,precipMm,hh){
+// much less. Rain is stacked ON TOP of the forecast-probability penalty,
+// not instead of it - so actually raining is always strictly worse than
+// merely a matching chance of rain (a naive "halve if raining, else
+// subtract the chance" version could let an 80%-chance-but-dry hour score
+// *worse* than an actually-raining one, which makes no sense).
+function beerIndex(t,w,h,c,precipProb,rain,hh){
   const base = 0.50*tempScore(t) + 0.20*cloudScore(c) + 0.10*windScore(w) + 0.10*humidityScore(h) + 0.10*hourScore(hh);
-  let penalty = (precipProb/100)*0.5 + Math.min(0.3, (precipMm||0)*0.1);
-  let score = Math.max(0, Math.min(1, base-penalty));
-  if(precipMm > 0) score = Math.max(0.12, score);
-  return score;
+  let score = base - (precipProb/100*0.3);
+  if(rain) score *= 0.7;
+  return Math.max(0, Math.min(1, score));
 }
 
 function fmtHour(iso){
@@ -225,7 +225,10 @@ function buildHourly(data){
     temp:h.temperature_2m[i],
     hum:h.relative_humidity_2m[i],
     precipProb:h.precipitation_probability[i],
-    precipMm:h.precipitation[i],
+    // Just "is it raining right now", not how much - a 0.5mm drizzle and a
+    // 15mm downpour are both "not nice to sit outside in", so there's no
+    // real value in the app carrying the raw mm figure around.
+    rain:h.precipitation[i] > 0.1,
     cloud:h.cloud_cover[i],
     wind:h.wind_speed_10m[i],
     hour:new Date(t).getHours()
@@ -277,15 +280,15 @@ function bucketQuarters(rows){
       temp: avg('temp'), hum: avg('hum'), wind: avg('wind'), cloud: avg('cloud'),
       hour: avg('hour'),
       precipProb: max('precipProb'),
-      precipMm: chunk.reduce((a,r)=>a+r.precipMm,0)
+      // Rain if any hour in the block had rain, not an averaged/summed amount.
+      rain: chunk.some(r=>r.rain)
     };
   }).filter(Boolean);
 }
 
-function renderRow(label, temp, wind, hum, cloud, precipProb, precipMm, hour){
-  const score = beerIndex(temp,wind,hum,cloud,precipProb,precipMm,hour);
+function renderRow(label, temp, wind, hum, cloud, precipProb, rain, hour){
+  const score = beerIndex(temp,wind,hum,cloud,precipProb,rain,hour);
   const color = scoreColor(score);
-  const rain = precipMm > 0.1;
   const emoji = weatherEmoji(cloud, rain);
   return `<div class="day-row">
     <span class="row-time">${label}</span>
@@ -300,8 +303,8 @@ function renderRow(label, temp, wind, hum, cloud, precipProb, precipMm, hour){
 // default, with a "Details" toggle to expand to the full hour-by-hour view -
 // the hourly data is already in hand, so expanding is instant.
 function renderDayCard(group){
-  const hourlyRowsHtml = () => group.rows.map(r=>renderRow(fmtHour(r.time), r.temp, r.wind, r.hum, r.cloud, r.precipProb, r.precipMm, r.hour)).join('');
-  const quarterRowsHtml = () => bucketQuarters(group.rows).map(b=>renderRow(b.label, b.temp, b.wind, b.hum, b.cloud, b.precipProb, b.precipMm, b.hour)).join('');
+  const hourlyRowsHtml = () => group.rows.map(r=>renderRow(fmtHour(r.time), r.temp, r.wind, r.hum, r.cloud, r.precipProb, r.rain, r.hour)).join('');
+  const quarterRowsHtml = () => bucketQuarters(group.rows).map(b=>renderRow(b.label, b.temp, b.wind, b.hum, b.cloud, b.precipProb, b.rain, b.hour)).join('');
 
   if(group.dayIndex === 0){
     return `<div class="day-card">
@@ -329,7 +332,7 @@ function renderHome(curScore, curColor, cur){
 
   const emoji = document.getElementById('homeNowEmoji');
   const temp = document.getElementById('homeNowTemp');
-  if(emoji) emoji.textContent = weatherEmoji(cur.cloud, cur.precipMm > 0.1);
+  if(emoji) emoji.textContent = weatherEmoji(cur.cloud, cur.rain);
   if(temp) temp.textContent = `${Math.round(cur.temp)}°`;
 }
 
@@ -358,7 +361,7 @@ function findBestUpcoming(rows, now){
   let best = null, bestScore = -1;
   rows.forEach(r=>{
     if(new Date(r.time) < currentHourStart) return;
-    const s = beerIndex(r.temp, r.wind, r.hum, r.cloud, r.precipProb, r.precipMm, r.hour);
+    const s = beerIndex(r.temp, r.wind, r.hum, r.cloud, r.precipProb, r.rain, r.hour);
     if(s > bestScore){ bestScore = s; best = r; }
   });
   return best ? {time:best.time, score:bestScore} : null;
@@ -441,15 +444,20 @@ async function renderAll(lat, lon, name){
     const data = await fetchWeather(lat, lon);
     const rows = buildHourly(data);
     const now = new Date();
-    // find index closest to current time
+    // Find the row for the start of the current hour (not just whichever
+    // row is closest to the exact current time) - same fix as
+    // buildDayGroups/findBestUpcoming: at e.g. 13:31, the 14:00 row is
+    // "closer" by raw time difference than the still-current 13:00 row,
+    // which made the home gauge show next hour's score instead of now's.
+    const currentHourStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours());
     let curIdx = 0;
     let bestDiff = Infinity;
     rows.forEach((r,i)=>{
-      const diff = Math.abs(new Date(r.time)-now);
+      const diff = Math.abs(new Date(r.time)-currentHourStart);
       if(diff<bestDiff){bestDiff=diff;curIdx=i;}
     });
     const cur = rows[curIdx];
-    const curScore = beerIndex(cur.temp,cur.wind,cur.hum,cur.cloud,cur.precipProb,cur.precipMm,cur.hour);
+    const curScore = beerIndex(cur.temp,cur.wind,cur.hum,cur.cloud,cur.precipProb,cur.rain,cur.hour);
     const curColor = scoreColor(curScore);
 
     renderHome(curScore, curColor, cur);
