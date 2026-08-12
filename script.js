@@ -54,10 +54,10 @@ function tempScore(t){
 }
 function cloudScore(c){
   if(c<10) return 1.0;
-  if(c<33) return 0.9;
-  if(c<67) return 0.8;
-  if(c<90) return 0.7;
-  return 0.5;
+  if(c<33) return 0.8;
+  if(c<67) return 0.6;
+  if(c<90) return 0.4;
+  return 0.2;
 }
 function humidityScore(h){
   if(h>=40 && h<=50) return 1.0;
@@ -183,6 +183,13 @@ function buildDayGroups(rows, now){
 }
 
 // Split one day's hours into the four fixed 6-hour blocks Yr-style apps use.
+// Score is the AVERAGE of each hour's own beerIndex() result, not one score
+// computed from averaged inputs - so a single rainy/cold hour only pulls its
+// own 1/6 share of the block down, instead of e.g. the rain penalty applying
+// to the whole 6-hour block just because one hour in it rained. The icon is
+// decided separately, purely for display: average cloud cover plus a
+// majority-rule rain flag (more than half the hours), since one rainy hour
+// out of six shouldn't make the block's symbol look fully rainy either.
 function bucketQuarters(rows){
   const quarters = [[],[],[],[]];
   const labels = ['00-06','06-12','12-18','18-24'];
@@ -193,22 +200,19 @@ function bucketQuarters(rows){
   return quarters.map((chunk,i)=>{
     if(chunk.length===0) return null;
     const avg = k=>chunk.reduce((a,r)=>a+r[k],0)/chunk.length;
-    const max = k=>Math.max(...chunk.map(r=>r[k]));
+    const score = ()=>chunk.reduce((a,r)=>a+beerIndex(r.temp,r.wind,r.hum,r.cloud,r.precipProb,r.rain,r.hour),0)/chunk.length;
+    const majorityRain = chunk.filter(r=>r.rain).length > chunk.length/2;
     return {
       label: labels[i],
-      temp: avg('temp'), hum: avg('hum'), wind: avg('wind'), cloud: avg('cloud'),
-      hour: avg('hour'),
-      precipProb: max('precipProb'),
-      // Rain if any hour in the block had rain, not an averaged/summed amount.
-      rain: chunk.some(r=>r.rain)
+      temp: avg('temp'),
+      score: score(),
+      emoji: weatherEmoji(avg('cloud'), majorityRain)
     };
   }).filter(Boolean);
 }
 
-function renderRow(label, temp, wind, hum, cloud, precipProb, rain, hour){
-  const score = beerIndex(temp,wind,hum,cloud,precipProb,rain,hour);
+function renderRow(label, temp, emoji, score){
   const color = scoreColor(score);
-  const emoji = weatherEmoji(cloud, rain);
   return `<div class="day-row">
     <span class="row-time">${label}</span>
     <span class="row-emoji">${emoji}</span>
@@ -222,8 +226,12 @@ function renderRow(label, temp, wind, hum, cloud, precipProb, rain, hour){
 // default, with a "Details" toggle to expand to the full hour-by-hour view -
 // the hourly data is already in hand, so expanding is instant.
 function renderDayCard(group){
-  const hourlyRowsHtml = () => group.rows.map(r=>renderRow(fmtHour(r.time), r.temp, r.wind, r.hum, r.cloud, r.precipProb, r.rain, r.hour)).join('');
-  const quarterRowsHtml = () => bucketQuarters(group.rows).map(b=>renderRow(b.label, b.temp, b.wind, b.hum, b.cloud, b.precipProb, b.rain, b.hour)).join('');
+  const hourlyRowsHtml = () => group.rows.map(r=>{
+    const score = beerIndex(r.temp,r.wind,r.hum,r.cloud,r.precipProb,r.rain,r.hour);
+    const emoji = weatherEmoji(r.cloud, r.rain);
+    return renderRow(fmtHour(r.time), r.temp, emoji, score);
+  }).join('');
+  const quarterRowsHtml = () => bucketQuarters(group.rows).map(b=>renderRow(b.label, b.temp, b.emoji, b.score)).join('');
 
   if(group.dayIndex === 0){
     return `<div class="day-card">
