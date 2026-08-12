@@ -3,7 +3,7 @@
 // installed and opens instantly; weather/geocoding API calls always go
 // to the network untouched (forecasts should never be served stale).
 
-const CACHE_NAME = "pilsindex-shell-v77";
+const CACHE_NAME = "pilsindex-shell-v78";
 const APP_SHELL = [
     "./",
     "./index.html",
